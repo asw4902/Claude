@@ -201,6 +201,13 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
 .autostate { font-size: .9rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .kwlist { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; }
 .kwlist span { font-size: .82rem; background: var(--info-soft); color: var(--info); border-radius: 999px; padding: 2px 10px; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 10px; }
+.gitem { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gitem img, .gitem .ph { width: 100%; max-width: 100%; aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--line); display: block; -webkit-touch-callout: default; }
+.gitem .ph { display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; font-size: .85rem; color: var(--muted); background: var(--bg); }
+.gitem .cap { font-size: .82rem; color: var(--muted); line-height: 1.4; display: flex; gap: 6px; align-items: flex-start; }
+.gitem .cap b { color: var(--accent); flex: none; font-variant-numeric: tabular-nums; }
+.gitem button { min-height: 36px; padding: 6px 10px; font-size: .85rem; }
 .srclist { margin: 0 0 14px; padding-left: 20px; font-size: .9rem; }
 .srclist a { color: var(--info); word-break: break-all; }
 @media (prefers-reduced-motion: no-preference) { button { transition: filter .12s; } button:active { filter: brightness(.92); } }
@@ -391,26 +398,17 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
           </div>
 
           <h2>이미지</h2>
-          <ul class="imgplan" id="imgplan"></ul>
           <div class="swatches" id="swatches" role="group" aria-label="카드 색"></div>
-          <div class="cards">
-            <div class="card">
-              <img id="thumbImg" alt="대표 이미지">
-              <button type="button" id="saveThumb">대표 이미지 저장</button>
-            </div>
-            <div class="card">
-              <img id="sumImg" alt="요약 카드">
-              <button type="button" id="saveSum">요약 카드 저장</button>
-            </div>
-          </div>
-          <div class="note" style="margin-bottom:14px">저장이 안 되면 이미지를 길게 눌러 ‘사진 앱에 저장’을 고르세요.</div>
+          <div class="gallery" id="gallery"></div>
+          <div class="actions" style="margin-bottom:6px"><button type="button" id="genImgs">사진 자리마다 이미지 만들기</button></div>
+          <div class="note" id="imgNote" style="margin-bottom:14px">[사진] 자리마다 본문 내용으로 정리 카드(신청 순서·체크리스트·핵심 날짜·비교표 등)를 만듭니다. 직접 찍은 사진이 있으면 그걸 쓰는 게 더 좋아요. 저장이 안 되면 이미지를 길게 눌러 ‘사진 앱에 저장’을 고르세요.</div>
 
           <h2>태그</h2>
           <div class="tags" id="tags"></div>
 
           <div class="actions">
             <button type="button" class="primary" id="cpTitle">① 제목 복사</button>
-            <button type="button" class="primary" id="cpBody">② 본문 복사</button>
+            <button type="button" class="primary" id="cpBody">② 본문+이미지 복사</button>
             <button type="button" class="primary" id="cpTags">③ 태그 복사</button>
           </div>
           <div class="actions" style="margin-top:8px">
@@ -418,6 +416,7 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
             <button type="button" id="markScheduled">예약 완료로 표시</button>
             <button type="button" id="markPublished">발행 완료로 표시</button>
           </div>
+          <div class="note" style="margin-top:6px">본문+이미지 복사가 네이버에서 이미지 없이 붙으면 <button type="button" class="linkbtn" id="cpBodyText">글자만 복사</button>하고 이미지는 저장해서 넣으세요.</div>
           <ol class="steps" id="pubSteps"></ol>
         </div>
       </section>
@@ -765,7 +764,8 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     L.push("- 실제로 글쓴이가 찍거나 캡처할 수 있는 구체적인 장면으로. 소제목 바로 아래나 설명이 끝난 곳에 고르게 배치. 같은 종류만 반복하지 말 것.");
     L.push("");
     L.push("반드시 아래 JSON 하나만 답해. 다른 말은 쓰지 마.");
-    L.push('{"titles": ["제목1", "제목2", "제목3"], "body": "본문 전체(줄바꿈은 \\n)", "tags": ["태그", "... 8~12개, # 없이"], "thumb": "대표 이미지에 넣을 문구 (14자 안팎, 줄바꿈 1번 가능)", "summary": ["요약 카드 문장 4~5개, 각각 22자 이내"]}');
+    L.push('{"titles": ["제목1", "제목2", "제목3"], "body": "본문 전체(줄바꿈은 \\n)", "tags": ["태그", "... 8~12개, # 없이"], "thumb": "대표 이미지에 넣을 문구 (14자 안팎, 줄바꿈 1번 가능)", "summary": ["요약 카드 문장 4~5개, 각각 22자 이내"], "images": [IMAGE_SPEC, "... 본문의 [사진: …] 자리와 같은 개수, 같은 순서"]}');
+    L.push(IMAGE_RULES);
     L.push("제목은 25~35자, 사람이 붙인 것처럼 담백하게. '충격', '무조건', '모르면 손해', '총정리' 금지.");
     return L.join("\n");
   }
@@ -888,6 +888,7 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     p.tags = (Array.isArray(r.tags) ? r.tags : []).map((t) => String(t).replace(/^#/, "").trim()).filter(Boolean).slice(0, 12);
     p.thumb = String(r.thumb || p.topic).replace(/\\n/g, "\n").slice(0, 40);
     p.summary = (Array.isArray(r.summary) ? r.summary : []).map(String).slice(0, 5);
+    p.images = normImages(r.images);
     p.status = "review"; p.error = "";
   }
   function makePost(o, extra) {
@@ -1091,31 +1092,48 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     items.forEach(([ok, t]) => { const li = document.createElement("li"); li.className = ok ? "ok" : "no"; li.textContent = (ok ? "✓ " : "! ") + t; ul.append(li); });
     box.append(ul);
   }
-  function drawImgPlan() {
-    const ul = $("imgplan"); ul.textContent = "";
-    const add = (n, kind, text) => {
-      const li = document.createElement("li");
-      const a = document.createElement("span"); a.className = "n"; a.textContent = n;
-      const b = document.createElement("span"); b.textContent = text; b.style.minWidth = "0";
-      const k = document.createElement("span"); k.className = "k"; k.textContent = kind;
-      li.append(a, b, k); ul.append(li);
-    };
-    add("대표", "자동 생성", "글 맨 위: 아래 대표 이미지");
-    markers($("body").value).forEach((m, i) => add(String(i + 1), /캡처|화면/.test(m) ? "캡처" : "직접 촬영", m));
-    add("요약", "자동 생성", "마지막 소제목 근처: 아래 요약 카드");
+  function drawImgPlan() { drawGallery(); }
+
+  // ---------- 이미지 만들기 ----------
+  // 사진 자리 하나당 정리 카드 한 장. 내용은 본문에 있는 사실만 씀.
+  const IMG_TYPES = { steps: "순서", checklist: "체크리스트", keynum: "핵심 숫자", compare: "비교", qa: "Q&A", tip: "TIP" };
+  const IMAGE_RULES = [
+    "[images 규칙] 본문의 [사진: …] 자리 하나마다 그 자리 주변 내용을 정리한 카드 이미지 내용을 하나씩, 같은 순서로 만든다.",
+    "IMAGE_SPEC 형식: {\"type\": \"steps|checklist|keynum|compare|qa|tip\", \"title\": \"카드 제목 16자 이내\", \"items\": [...], \"big\": \"keynum일 때 큰 글씨(예: 12월 31일)\", \"cols\": [\"compare일 때 왼쪽 열 이름\", \"오른쪽 열 이름\"], \"note\": \"tip·qa일 때 설명 60자 이내\"}",
+    "- steps: items = 순서대로 할 일 3~5개(각 20자 이내). checklist: items = 확인할 것 3~6개(각 20자 이내). keynum: big = 날짜·금액 등 핵심 값 하나, items = 보충 설명 1~3줄. compare: items = [[\"항목\", \"왼쪽 값\", \"오른쪽 값\"], …] 2~4줄. qa: title = 질문, note = 답. tip: title = 팁 제목, note = 팁 내용.",
+    "- 숫자·날짜·금액은 본문에 있는 것만. 본문에 없거나 [공고 확인] 자리인 값은 카드에 넣지 말고 다른 내용을 고른다. 같은 type만 반복하지 말 것.",
+  ].join("\n");
+  function normImages(arr) {
+    if (!Array.isArray(arr)) return [];
+    return arr.slice(0, 12).map((x) => {
+      x = x || {};
+      const type = IMG_TYPES[x.type] ? x.type : "checklist";
+      const items = Array.isArray(x.items) ? x.items.slice(0, 6).map((it) => Array.isArray(it) ? it.slice(0, 3).map((v) => String(v).slice(0, 24)) : String(it).slice(0, 40)) : [];
+      return { type, title: String(x.title || "").slice(0, 30), items, big: String(x.big || "").slice(0, 16),
+        cols: Array.isArray(x.cols) ? x.cols.slice(0, 2).map((v) => String(v).slice(0, 12)) : [], note: String(x.note || "").slice(0, 120) };
+    });
+  }
+  function imagePrompt(body) {
+    return [
+      "아래 블로그 본문의 [사진: …] 자리마다 넣을 정리 카드 이미지의 내용을 만들어줘.",
+      `[사진] 자리는 ${markers(body).length}개야. 정확히 그 개수만큼, 같은 순서로.`,
+      IMAGE_RULES.replace(/IMAGE_SPEC/g, "카드"),
+      "",
+      "[본문]", body.slice(0, 40000), "",
+      '반드시 JSON 하나만 답해: {"images": [카드, …]}  카드 형식은 위 IMAGE_SPEC 형식.',
+    ].join("\n").replace("IMAGE_SPEC 형식", "카드 형식");
   }
 
-  // ---------- 이미지 카드 (캔버스) ----------
   const THEMES = [
-    { name: "숲", bg: "#24513f", fg: "#f6f1e4", sub: "#cfe3d6", soft: "#eef3ec", ink: "#1f2a24", acc: "#2f6b52" },
-    { name: "바다", bg: "#1f4766", fg: "#f3f6f8", sub: "#c6d7e5", soft: "#eef3f7", ink: "#1b2732", acc: "#2a5f88" },
-    { name: "노을", bg: "#a24a25", fg: "#fff6ec", sub: "#f3d2bd", soft: "#fbf2ea", ink: "#2d1d14", acc: "#a24a25" },
-    { name: "먹", bg: "#26292c", fg: "#f4f2ec", sub: "#c9c6bd", soft: "#f2f1ed", ink: "#1f2124", acc: "#4a4f55" },
+    { name: "숲", bg: "#24513f", fg: "#f6f1e4", sub: "#cfe3d6", soft: "#eef3ec", ink: "#1f2a24", acc: "#2f6b52", line: "#c9d8cd" },
+    { name: "바다", bg: "#1f4766", fg: "#f3f6f8", sub: "#c6d7e5", soft: "#eef3f7", ink: "#1b2732", acc: "#2a5f88", line: "#c7d5e2" },
+    { name: "노을", bg: "#a24a25", fg: "#fff6ec", sub: "#f3d2bd", soft: "#fbf2ea", ink: "#2d1d14", acc: "#a24a25", line: "#ead2c2" },
+    { name: "먹", bg: "#26292c", fg: "#f4f2ec", sub: "#c9c6bd", soft: "#f2f1ed", ink: "#1f2124", acc: "#4a4f55", line: "#d6d3cb" },
   ];
   let themeIdx = local.get("theme", 0) % THEMES.length;
   function drawSwatches() {
     const box = $("swatches"); box.textContent = "";
-    const lab = document.createElement("span"); lab.className = "label"; lab.textContent = "카드 색"; box.append(lab);
+    const lab = document.createElement("span"); lab.className = "label"; lab.textContent = "이미지 색"; box.append(lab);
     THEMES.forEach((t, i) => {
       const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.style.background = t.bg;
       b.setAttribute("aria-label", t.name); b.setAttribute("aria-pressed", String(i === themeIdx));
@@ -1142,56 +1160,150 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
   }
   const FONT_D = '"Gothic A1", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
   const FONT_B = '"Noto Sans KR", "Apple SD Gothic Neo", sans-serif';
+  const S = 1080, M = 96;
+  function newCanvas() { const cv = document.createElement("canvas"); cv.width = cv.height = S; const x = cv.getContext("2d"); x.textBaseline = "top"; return [cv, x]; }
+  function rrect(x, X, Y, W, H, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + W, Y, X + W, Y + H, r); x.arcTo(X + W, Y + H, X, Y + H, r); x.arcTo(X, Y + H, X, Y, r); x.arcTo(X, Y, X + W, Y, r); x.closePath(); }
+  function fitText(x, text, maxW, maxLines, size, min, weight, face) {
+    let lines;
+    do { x.font = `${weight} ${size}px ${face}`; lines = wrapLines(x, text, maxW); size -= 4; } while (lines.length > maxLines && size >= min);
+    return { lines: lines.slice(0, maxLines), size: size + 4 };
+  }
+  const nickOf = (c) => c.nick || $("nick").value || "";
+
   function thumbCanvas(c) {
-    const t = THEMES[themeIdx]; const S = 1080;
-    const cv = document.createElement("canvas"); cv.width = cv.height = S; const x = cv.getContext("2d");
+    const t = THEMES[themeIdx]; const [cv, x] = newCanvas();
     x.fillStyle = t.bg; x.fillRect(0, 0, S, S);
     x.fillStyle = t.sub; x.globalAlpha = .14; x.beginPath(); x.arc(S * .88, S * .14, 260, 0, Math.PI * 2); x.fill(); x.globalAlpha = 1;
-    x.fillStyle = t.sub; x.font = `600 40px ${FONT_B}`; x.textBaseline = "top";
-    x.fillText(c.cat || "", 96, 110);
-    x.fillRect(96, 172, 72, 6);
+    x.fillStyle = t.sub; x.font = `600 40px ${FONT_B}`; x.fillText(c.cat || "", M, 110);
+    x.fillRect(M, 172, 72, 6);
     let size = 112, lines;
-    do { x.font = `800 ${size}px ${FONT_D}`; lines = wrapLines(x, c.thumb || c.titles[0] || c.topic, S - 192); size -= 6; } while ((lines.length > 4 || lines.length * size * 1.3 > 560) && size > 56);
+    do { x.font = `800 ${size}px ${FONT_D}`; lines = wrapLines(x, c.thumb || c.titles[0] || c.topic, S - 2 * M); size -= 6; } while ((lines.length > 4 || lines.length * size * 1.3 > 560) && size > 56);
     size += 6; const lh = size * 1.28; const top = 250 + (560 - lines.length * lh) / 2;
-    x.fillStyle = t.fg; lines.forEach((l, i) => x.fillText(l, 96, top + i * lh));
-    x.font = `500 38px ${FONT_B}`; x.fillStyle = t.sub; x.fillText(c.nick || $("nick").value || "", 96, S - 150);
+    x.fillStyle = t.fg; lines.forEach((l, i) => x.fillText(l, M, top + i * lh));
+    x.font = `500 38px ${FONT_B}`; x.fillStyle = t.sub; x.fillText(nickOf(c), M, S - 150);
     return cv;
   }
   function summaryCanvas(c) {
-    const t = THEMES[themeIdx]; const S = 1080;
-    const cv = document.createElement("canvas"); cv.width = cv.height = S; const x = cv.getContext("2d");
+    return cardCanvas({ type: "checklist", title: "한눈에 정리", items: c.summary && c.summary.length ? c.summary : [c.titles[0] || c.topic] }, c, "요약", true);
+  }
+  // 정리 카드: 위쪽 색 띠 + 제목, 아래 내용
+  function cardCanvas(sp, c, label, numbered) {
+    const t = THEMES[themeIdx]; const [cv, x] = newCanvas();
     x.fillStyle = t.soft; x.fillRect(0, 0, S, S);
-    x.fillStyle = t.bg; x.fillRect(0, 0, S, 200);
-    x.textBaseline = "middle"; x.fillStyle = t.fg; x.font = `800 64px ${FONT_D}`; x.fillText("한눈에 정리", 96, 100);
-    const pts = c.summary && c.summary.length ? c.summary : [c.titles[0] || c.topic];
-    x.textBaseline = "top"; let y = 270; const maxW = S - 96 - 170;
-    let size = 46; x.font = `600 ${size}px ${FONT_B}`;
-    const blocks = pts.map((p) => wrapLines(x, p, maxW));
-    const total = blocks.reduce((a, b) => a + b.length, 0);
-    if (total > 9) { size = 38; x.font = `600 ${size}px ${FONT_B}`; }
-    else if (total <= 6) { size = 54; x.font = `600 ${size}px ${FONT_B}`; y = 300; }
-    const lh = size * 1.4;
-    pts.forEach((pt, i) => {
-      const ls = wrapLines(x, pt, maxW);
-      x.fillStyle = t.acc; x.beginPath(); x.arc(126, y + size * .6, 26, 0, Math.PI * 2); x.fill();
-      x.fillStyle = t.fg; x.font = `800 30px ${FONT_D}`; x.textAlign = "center"; x.fillText(String(i + 1), 126, y + size * .6 - 16); x.textAlign = "left";
-      x.fillStyle = t.ink; x.font = `600 ${size}px ${FONT_B}`;
-      ls.forEach((l, j) => x.fillText(l, 180, y + j * lh));
-      y += ls.length * lh + 36;
-    });
-    x.fillStyle = t.acc; x.font = `500 34px ${FONT_B}`; x.fillText(c.nick || $("nick").value || "", 96, S - 110);
+    x.fillStyle = t.bg; x.fillRect(0, 0, S, 300);
+    // 종류 표시
+    x.font = `700 34px ${FONT_B}`; const lab = label || IMG_TYPES[sp.type] || "";
+    const lw = x.measureText(lab).width + 44;
+    x.fillStyle = t.sub; rrect(x, M, 66, lw, 56, 28); x.fill();
+    x.fillStyle = t.bg; x.fillText(lab, M + 22, 74);
+    // 제목
+    const tt = fitText(x, sp.title || "", S - 2 * M, 2, 68, 48, 800, FONT_D);
+    x.fillStyle = t.fg; tt.lines.forEach((l, i) => x.fillText(l, M, 150 + i * tt.size * 1.2 + (tt.lines.length === 1 ? 22 : -8)));
+    const top = 360, bottom = S - 140, W = S - 2 * M;
+    x.fillStyle = t.ink;
+    const items = sp.items || [];
+    if (sp.type === "keynum") {
+      const big = fitText(x, sp.big || "", W, 1, 170, 80, 800, FONT_D);
+      x.fillStyle = t.acc; x.textAlign = "center"; x.fillText(big.lines[0] || "", S / 2, top + 40);
+      let y = top + 40 + big.size * 1.25 + 30;
+      x.fillStyle = t.line; x.fillRect(S / 2 - 60, y - 24, 120, 6);
+      x.fillStyle = t.ink;
+      items.slice(0, 3).forEach((it) => { const f = fitText(x, String(it), W, 2, 44, 34, 500, FONT_B); f.lines.forEach((l) => { x.fillText(l, S / 2, y); y += f.size * 1.4; }); y += 10; });
+      x.textAlign = "left";
+    } else if (sp.type === "compare") {
+      const cols = sp.cols.length === 2 ? sp.cols : ["", ""];
+      const rows = items.filter(Array.isArray).slice(0, 4);
+      const c0 = M, c1 = M + W * .32, c2 = M + W * .66, cw = W * .32;
+      x.font = `700 40px ${FONT_B}`; x.fillStyle = t.acc;
+      x.fillText(cols[0], c1 + 10, top); x.fillText(cols[1], c2 + 10, top);
+      let y = top + 70; const rh = Math.min(130, (bottom - y) / Math.max(rows.length, 1));
+      rows.forEach((r, i) => {
+        x.fillStyle = i % 2 ? t.line : "#ffffff"; x.globalAlpha = i % 2 ? .45 : .8; x.fillRect(M - 10, y - 14, W + 20, rh - 6); x.globalAlpha = 1;
+        x.fillStyle = t.ink;
+        [[r[0], c0 + 6, 700], [r[1], c1 + 10, 500], [r[2], c2 + 10, 500]].forEach(([v, X, w]) => {
+          const f = fitText(x, String(v || ""), cw - 20, 2, 38, 28, w, FONT_B); f.lines.forEach((l, j) => x.fillText(l, X, y + j * f.size * 1.25));
+        });
+        y += rh;
+      });
+    } else if (sp.type === "qa" || sp.type === "tip") {
+      x.font = `800 120px ${FONT_D}`; x.fillStyle = t.line; x.fillText(sp.type === "qa" ? "A." : "✓", M, top - 10);
+      const f = fitText(x, sp.note || items.join(" "), W - 150, 7, 50, 34, 500, FONT_B);
+      x.fillStyle = t.ink; f.lines.forEach((l, i) => x.fillText(l, M + 150, top + 10 + i * f.size * 1.5));
+    } else {
+      // steps / checklist
+      const list = items.map(String).slice(0, 6);
+      let size = 46; x.font = `600 ${size}px ${FONT_B}`;
+      const wrapped = () => list.map((it) => wrapLines(x, it, W - 110));
+      let blocks = wrapped(); let total = blocks.reduce((a, b) => a + b.length, 0);
+      while (total * size * 1.4 + list.length * 34 > bottom - top && size > 32) { size -= 4; x.font = `600 ${size}px ${FONT_B}`; blocks = wrapped(); total = blocks.reduce((a, b) => a + b.length, 0); }
+      if (total <= 5 && list.length <= 4) { size = 52; x.font = `600 ${size}px ${FONT_B}`; blocks = wrapped(); }
+      const lh = size * 1.4; let y = top;
+      const numbers = sp.type === "steps" || numbered;
+      blocks.forEach((ls, i) => {
+        const cy = y + size * .62;
+        if (numbers) {
+          if (sp.type === "steps" && i < blocks.length - 1) { x.fillStyle = t.line; x.fillRect(M + 25, cy + 30, 6, ls.length * lh + 4); }
+          x.fillStyle = t.acc; x.beginPath(); x.arc(M + 28, cy, 30, 0, Math.PI * 2); x.fill();
+          x.fillStyle = t.fg; x.font = `800 32px ${FONT_D}`; x.textAlign = "center"; x.fillText(String(i + 1), M + 28, cy - 17); x.textAlign = "left";
+        } else {
+          x.strokeStyle = t.acc; x.lineWidth = 6; rrect(x, M, cy - 26, 52, 52, 10); x.stroke();
+          x.beginPath(); x.moveTo(M + 12, cy); x.lineTo(M + 23, cy + 12); x.lineTo(M + 42, cy - 12); x.stroke();
+        }
+        x.fillStyle = t.ink; x.font = `600 ${size}px ${FONT_B}`;
+        ls.forEach((l, j) => x.fillText(l, M + 90, y + j * lh));
+        y += ls.length * lh + 34;
+      });
+    }
+    x.fillStyle = t.acc; x.font = `500 32px ${FONT_B}`; x.fillText(nickOf(c), M, S - 96);
     return cv;
   }
-  let thumbBlob = null, sumBlob = null;
+
+  // 갤러리: 대표 → 사진 자리 1..n → 요약
+  let gallery = [];   // [{key, label, cap, url, blob?, name}]
+  const renderCache = new Map();
+  function renderToUrl(key, fn) {
+    if (renderCache.has(key)) return renderCache.get(key);
+    const url = fn().toDataURL("image/png");
+    if (renderCache.size > 60) renderCache.clear();
+    renderCache.set(key, url); return url;
+  }
   async function drawCards() {
     if (!current) return;
-    try { await Promise.all([document.fonts.load(`800 60px "Gothic A1"`), document.fonts.load(`600 40px "Noto Sans KR"`), document.fonts.load(`500 40px "Noto Sans KR"`)]); } catch {}
-    const a = thumbCanvas(current), b = summaryCanvas(current);
-    $("thumbImg").src = a.toDataURL("image/png"); $("sumImg").src = b.toDataURL("image/png");
-    a.toBlob((bl) => thumbBlob = bl, "image/png"); b.toBlob((bl) => sumBlob = bl, "image/png");
+    try { await Promise.all([document.fonts.load(`800 60px "Gothic A1"`), document.fonts.load(`600 40px "Noto Sans KR"`), document.fonts.load(`500 40px "Noto Sans KR"`), document.fonts.load(`700 40px "Noto Sans KR"`)]); } catch {}
+    drawGallery();
   }
-  async function saveImage(blob, name) {
-    if (!blob) return;
+  function drawGallery() {
+    const c = current; if (!c) return;
+    const mk = markers($("body").value);
+    const imgs = Array.isArray(c.images) ? c.images : [];
+    const base = (c.topic || "blog").replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 30);
+    gallery = [];
+    gallery.push({ cap: "대표 이미지 (글 맨 위)", label: "대표", name: `${base}_00_대표.png`, url: renderToUrl(JSON.stringify(["t", themeIdx, c.thumb, c.cat, c.titles[0], nickOf(c)]), () => thumbCanvas(c)) });
+    mk.forEach((m, i) => {
+      const sp = imgs[i];
+      gallery.push({ cap: m, label: String(i + 1), name: `${base}_${String(i + 1).padStart(2, "0")}.png`,
+        url: sp ? renderToUrl(JSON.stringify(["c", themeIdx, sp, nickOf(c)]), () => cardCanvas(sp, c)) : "" });
+    });
+    gallery.push({ cap: "요약 카드 (마지막 소제목 근처)", label: "요약", name: `${base}_99_요약.png`, url: renderToUrl(JSON.stringify(["s", themeIdx, c.summary, c.titles[0], nickOf(c)]), () => summaryCanvas(c)) });
+    const box = $("gallery"); box.textContent = "";
+    gallery.forEach((g) => {
+      const fig = document.createElement("div"); fig.className = "gitem";
+      if (g.url) { const im = document.createElement("img"); im.src = g.url; im.alt = g.cap; fig.append(im); }
+      else { const ph = document.createElement("div"); ph.className = "ph"; ph.textContent = "아직 이미지 없음 · 아래 ‘이미지 만들기’를 누르거나 직접 찍은 사진을 넣으세요"; fig.append(ph); }
+      const cap = document.createElement("div"); cap.className = "cap";
+      const b = document.createElement("b"); b.textContent = g.label; const sp = document.createElement("span"); sp.textContent = g.cap;
+      cap.append(b, sp); fig.append(cap);
+      if (g.url) { const btn = document.createElement("button"); btn.type = "button"; btn.textContent = "저장"; btn.onclick = () => saveImage(g.url, g.name); fig.append(btn); }
+      box.append(fig);
+    });
+    const missing = mk.length - Math.min(imgs.length, mk.length);
+    $("genImgs").textContent = imgs.length ? "이미지 다시 만들기" : "사진 자리마다 이미지 만들기";
+    $("genImgs").classList.toggle("primary", missing > 0);
+    $("genImgs").hidden = mk.length === 0;
+  }
+  async function saveImage(url, name) {
+    if (!url) return;
+    const blob = await (await fetch(url)).blob();
     if (downloads) {
       try { await downloads.save({ filename: name, data: blob }); toast("저장했어요"); }
       catch (e) { if (e && e.code !== "declined") toast("저장이 안 되면 이미지를 길게 눌러 ‘사진 앱에 저장’을 고르세요."); }
@@ -1203,9 +1315,22 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     }
     toast("이미지를 길게 눌러 ‘사진 앱에 저장’을 고르세요.");
   }
-  const fileBase = () => (current ? current.topic : "blog").replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 30);
-  $("saveThumb").onclick = () => saveImage(thumbBlob, `${fileBase()}_대표.png`);
-  $("saveSum").onclick = () => saveImage(sumBlob, `${fileBase()}_요약.png`);
+  $("genImgs").onclick = async () => {
+    if (!current) return;
+    const body = $("body").value; const n = markers(body).length;
+    if (!n) { toast("본문에 [사진: …] 자리가 없어요."); return; }
+    const target = current;
+    $("genImgs").disabled = true; $("imgNote").textContent = `이미지 ${n}장 내용을 만드는 중… (30초 안팎)`;
+    try {
+      const r = await ask(imagePrompt(body), null, new AbortController().signal);
+      const imgs = normImages(r && (r.images || r));
+      if (!imgs.length) throw new Error("이미지 내용을 받지 못했어요. 다시 눌러 주세요.");
+      target.images = imgs; Posts.save(target);
+      if (current === target) drawGallery();
+      $("imgNote").textContent = `${imgs.length}장을 만들었어요. 색은 위에서 바꿀 수 있어요. 저장이 안 되면 이미지를 길게 눌러 ‘사진 앱에 저장’을 고르세요.`;
+    } catch (e) { $("imgNote").textContent = errText(e); }
+    finally { $("genImgs").disabled = false; }
+  };
 
   // ---------- 날짜 ----------
   const pad = (n) => String(n).padStart(2, "0");
@@ -1414,22 +1539,39 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     } catch { fail(); }
   }
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  function toHtml(text) {
-    return text.split(/\n{2,}/).map((block) => {
-      const b = block.trim(); if (!b) return "";
-      if (b.startsWith("■")) return `<h3>${esc(b.replace(/^■\s*/, ""))}</h3>`;
-      return `<p>${esc(b).replace(/\n/g, "<br>")}</p>`;
-    }).join("\n");
+  function toHtml(text, withImages) {
+    const imgTag = (url, alt) => `<p style="text-align:center"><img src="${url}" alt="${esc(alt)}" width="720"></p>`;
+    let n = 0; const out = [];
+    if (withImages && gallery[0] && gallery[0].url) out.push(imgTag(gallery[0].url, "대표 이미지"));
+    const summary = withImages && gallery.length > 1 ? gallery[gallery.length - 1] : null;
+    let summaryDone = false;
+    text.split(/\n{2,}/).forEach((block) => {
+      const b = block.trim(); if (!b) return;
+      if (summary && !summaryDone && /^확인일/.test(b)) { out.push(imgTag(summary.url, "요약")); summaryDone = true; }
+      if (b.startsWith("■")) { out.push(`<h3>${esc(b.replace(/^■\s*/, ""))}</h3>`); return; }
+      const lines = b.split("\n"); let para = [];
+      const flush = () => { if (para.length) out.push(`<p>${para.map(esc).join("<br>")}</p>`); para = []; };
+      lines.forEach((ln) => {
+        if (withImages && /^\s*\[(사진|캡처)\s*\d*\s*:[^\]]*\]\s*$/.test(ln)) {
+          flush(); n++; const g = gallery[n];
+          if (g && g.url) out.push(imgTag(g.url, g.cap)); else para.push(ln);
+        } else para.push(ln);
+      });
+      flush();
+    });
+    if (summary && !summaryDone) out.push(imgTag(summary.url, "요약"));
+    return out.join("\n");
   }
-  function copyBody() {
+  function copyBody(textOnly) {
     const text = $("body").value;
+    if (textOnly) { copyPlain(text, "본문 글자"); return; }
     try {
       if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
         const item = new ClipboardItem({
-          "text/html": new Blob([toHtml(text)], { type: "text/html" }),
+          "text/html": new Blob([toHtml(text, true)], { type: "text/html" }),
           "text/plain": new Blob([text], { type: "text/plain" }),
         });
-        navigator.clipboard.write([item]).then(() => toast("본문 복사됨"), () => copyPlain(text, "본문"));
+        navigator.clipboard.write([item]).then(() => toast("본문+이미지 복사됨 · 네이버에 붙여넣어 보세요"), () => copyPlain(text, "본문 글자"));
         return;
       }
     } catch {}
@@ -1438,6 +1580,7 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
   const selTitle = () => current.titles[current.titleIdx || 0] || current.topic;
   $("cpTitle").onclick = () => current && copyPlain(selTitle(), "제목");
   $("cpBody").onclick = () => current && copyBody();
+  $("cpBodyText").onclick = () => current && copyBody(true);
   $("cpTags").onclick = () => {
     if (!current) return;
     const t = radio("platform") === "tistory" ? current.tags.join(", ") : current.tags.map((x) => "#" + x).join(" ");
