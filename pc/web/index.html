@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="블로그 도우미">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;600;800&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;600;800&family=Noto+Sans+KR:wght@400;500;600;700;800&family=Gowun+Batang:wght@400;700&family=Black+Han+Sans&family=Jua&display=swap">
 <style>
 /* Layout: tabs (한 편 쓰기 | 10편 한꺼번에 | 검토·발행) over a two-pane workbench; stacks on portrait/phone */
 :root {
@@ -142,6 +142,7 @@ button:disabled { opacity: .55; cursor: default; }
 .swatches { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .sw { width: 36px; height: 36px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--line); }
 .sw[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--panel) inset; }
+.stylebtn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .steps { margin: 10px 0 0; padding-left: 20px; color: var(--muted); font-size: .9rem; }
 .steps li { margin-bottom: 4px; }
 .steps b { color: var(--ink); }
@@ -1208,20 +1209,46 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     ].join("\n").replace("IMAGE_SPEC 형식", "카드 형식");
   }
 
-  const THEMES = [
-    { name: "숲", bg: "#24513f", fg: "#f6f1e4", sub: "#cfe3d6", soft: "#eef3ec", ink: "#1f2a24", acc: "#2f6b52", line: "#c9d8cd" },
-    { name: "바다", bg: "#1f4766", fg: "#f3f6f8", sub: "#c6d7e5", soft: "#eef3f7", ink: "#1b2732", acc: "#2a5f88", line: "#c7d5e2" },
-    { name: "노을", bg: "#a24a25", fg: "#fff6ec", sub: "#f3d2bd", soft: "#fbf2ea", ink: "#2d1d14", acc: "#a24a25", line: "#ead2c2" },
-    { name: "먹", bg: "#26292c", fg: "#f4f2ec", sub: "#c9c6bd", soft: "#f2f1ed", ink: "#1f2124", acc: "#4a4f55", line: "#d6d3cb" },
-  ];
-  let themeIdx = local.get("theme", 0) % THEMES.length;
+  // ---------- 이미지 디자인: 스타일 3가지 × 색 4가지 ----------
+  const STYLES = {
+    magazine: { name: "매거진", pals: [
+      { name: "테라코타", bg: "#f5efe4", ink: "#211d18", sub: "#7a6f62", acc: "#b5502f", hi: "#f3cf73", line: "#ddd2c0", soft: "#ece3d3" },
+      { name: "올리브", bg: "#f2f0e6", ink: "#1e211b", sub: "#6d705f", acc: "#4d6b3a", hi: "#cfe2a8", line: "#d6d6c3", soft: "#e6e6d6" },
+      { name: "잉크", bg: "#f3f2ee", ink: "#16192a", sub: "#666a7a", acc: "#27408b", hi: "#b9d3f5", line: "#d5d6db", soft: "#e5e6ec" },
+      { name: "로즈", bg: "#f8f0ee", ink: "#2a1b1f", sub: "#7f6a6f", acc: "#a2385a", hi: "#f6c2d0", line: "#e5d2d4", soft: "#f0e2e2" },
+    ] },
+    pastel: { name: "파스텔", pals: [
+      { name: "복숭아", g1: "#ffe3d3", g2: "#ffc9cf", ink: "#3b2b2a", sub: "#8c7471", acc: "#ea6f62", soft: "#fff3ec", line: "#f4d6d0" },
+      { name: "민트", g1: "#d6f4e9", g2: "#c2e3f5", ink: "#1f3532", sub: "#5f7d78", acc: "#21957f", soft: "#eefaf5", line: "#cde8df" },
+      { name: "라벤더", g1: "#e6e0fb", g2: "#f8d9ee", ink: "#2d2840", sub: "#77708f", acc: "#7259cc", soft: "#f4f1fd", line: "#ddd6f3" },
+      { name: "버터", g1: "#fff2c2", g2: "#ffd6ae", ink: "#3a2e1d", sub: "#87765a", acc: "#d9801a", soft: "#fff8e6", line: "#f1e0bd" },
+    ] },
+    bold: { name: "볼드", pals: [
+      { name: "코발트", bg: "#2348d8", dark: "#0f1f63", acc: "#ffd84a", ink: "#14172b", sub: "#5b6080", paper: "#ffffff", soft: "#eef1fd" },
+      { name: "토마토", bg: "#e5482f", dark: "#5c160c", acc: "#fff0a8", ink: "#24120e", sub: "#7b5d57", paper: "#ffffff", soft: "#fdeeea" },
+      { name: "포레스트", bg: "#11704f", dark: "#073525", acc: "#ffe066", ink: "#10241c", sub: "#577166", paper: "#ffffff", soft: "#e8f4ef" },
+      { name: "차콜", bg: "#25272c", dark: "#0c0d10", acc: "#ff9f43", ink: "#18191c", sub: "#62656d", paper: "#ffffff", soft: "#f1f1f2" },
+    ] },
+  };
+  let imgStyle = STYLES[local.get("imgStyle", "magazine")] ? local.get("imgStyle", "magazine") : "magazine";
+  let palIdx = Math.min(3, Math.max(0, Number(local.get("imgPal", 0)) || 0));
+  const PAL = () => STYLES[imgStyle].pals[palIdx];
+  const styleKey = () => imgStyle + palIdx;
   function drawSwatches() {
     const box = $("swatches"); box.textContent = "";
-    const lab = document.createElement("span"); lab.className = "label"; lab.textContent = "이미지 색"; box.append(lab);
-    THEMES.forEach((t, i) => {
-      const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.style.background = t.bg;
-      b.setAttribute("aria-label", t.name); b.setAttribute("aria-pressed", String(i === themeIdx));
-      b.onclick = () => { themeIdx = i; local.set("theme", i); drawSwatches(); drawCards(); };
+    const lab = document.createElement("span"); lab.className = "label"; lab.textContent = "스타일"; box.append(lab);
+    Object.entries(STYLES).forEach(([k, st]) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "sm stylebtn"; b.textContent = st.name;
+      b.setAttribute("aria-pressed", String(k === imgStyle));
+      b.onclick = () => { imgStyle = k; local.set("imgStyle", k); drawSwatches(); drawCards(); };
+      box.append(b);
+    });
+    const lab2 = document.createElement("span"); lab2.className = "label"; lab2.style.marginLeft = "8px"; lab2.textContent = "색"; box.append(lab2);
+    STYLES[imgStyle].pals.forEach((pl, i) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "sw";
+      b.style.background = pl.g1 ? `linear-gradient(135deg, ${pl.g1}, ${pl.g2})` : imgStyle === "bold" ? pl.bg : `linear-gradient(135deg, ${pl.bg} 50%, ${pl.acc} 50%)`;
+      b.setAttribute("aria-label", pl.name); b.title = pl.name; b.setAttribute("aria-pressed", String(i === palIdx));
+      b.onclick = () => { palIdx = i; local.set("imgPal", i); drawSwatches(); drawCards(); };
       box.append(b);
     });
   }
@@ -1242,8 +1269,10 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     });
     return out;
   }
-  const FONT_D = '"Gothic A1", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
   const FONT_B = '"Noto Sans KR", "Apple SD Gothic Neo", sans-serif';
+  const FONT_SERIF = '"Gowun Batang", "Nanum Myeongjo", "AppleMyungjo", serif';
+  const FONT_BLACK = '"Black Han Sans", "Gothic A1", "Noto Sans KR", sans-serif';
+  const FONT_ROUND = '"Jua", "Gowun Dodum", "Noto Sans KR", sans-serif';
   const S = 1080, M = 96;
   function newCanvas() { const cv = document.createElement("canvas"); cv.width = cv.height = S; const x = cv.getContext("2d"); x.textBaseline = "top"; return [cv, x]; }
   function rrect(x, X, Y, W, H, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + W, Y, X + W, Y + H, r); x.arcTo(X + W, Y + H, X, Y + H, r); x.arcTo(X, Y + H, X, Y, r); x.arcTo(X, Y, X + W, Y, r); x.closePath(); }
@@ -1252,94 +1281,199 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     do { x.font = `${weight} ${size}px ${face}`; lines = wrapLines(x, text, maxW); size -= 4; } while (lines.length > maxLines && size >= min);
     return { lines: lines.slice(0, maxLines), size: size + 4 };
   }
+  function spaced(x, text, X, Y, sp) { let cx = X; for (const ch of String(text)) { x.fillText(ch, cx, Y); cx += x.measureText(ch).width + sp; } return cx; }
+  function rng(seed) { let a = seed >>> 0; return () => { a += 0x6D2B79F5; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function grain(x, color, n, alpha) { const r = rng(7); x.fillStyle = color; x.globalAlpha = alpha; for (let i = 0; i < n; i++) x.fillRect(r() * S, r() * S, 1.6, 1.6); x.globalAlpha = 1; }
   const nickOf = (c) => c.nick || $("nick").value || "";
+  const todayDot = () => { const d = new Date(); return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`; };
 
+  // 작은 아이콘 (카드 종류 표시)
+  function icon(x, type, cx, cy, r, col, bg) {
+    x.save(); x.strokeStyle = col; x.fillStyle = col; x.lineWidth = r * .16; x.lineCap = "round"; x.lineJoin = "round";
+    if (bg) { x.fillStyle = bg; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); x.fillStyle = col; }
+    const u = r * .5;
+    if (type === "steps") { [-1, 0, 1].forEach((k) => { x.beginPath(); x.arc(cx - u * .9, cy + k * u * .8, u * .16, 0, 7); x.fill(); x.beginPath(); x.moveTo(cx - u * .4, cy + k * u * .8); x.lineTo(cx + u, cy + k * u * .8); x.stroke(); }); }
+    else if (type === "checklist") { x.beginPath(); x.moveTo(cx - u, cy); x.lineTo(cx - u * .2, cy + u * .75); x.lineTo(cx + u, cy - u * .7); x.stroke(); }
+    else if (type === "keynum") { rrect(x, cx - u, cy - u * .8, u * 2, u * 1.8, u * .25); x.stroke(); x.beginPath(); x.moveTo(cx - u, cy - u * .25); x.lineTo(cx + u, cy - u * .25); x.moveTo(cx - u * .5, cy - u * 1.1); x.lineTo(cx - u * .5, cy - u * .6); x.moveTo(cx + u * .5, cy - u * 1.1); x.lineTo(cx + u * .5, cy - u * .6); x.stroke(); }
+    else if (type === "compare") { x.beginPath(); x.moveTo(cx - u, cy - u * .4); x.lineTo(cx + u, cy - u * .4); x.lineTo(cx + u * .55, cy - u * .85); x.moveTo(cx + u, cy + u * .4); x.lineTo(cx - u, cy + u * .4); x.lineTo(cx - u * .55, cy + u * .85); x.stroke(); }
+    else if (type === "qa") { rrect(x, cx - u, cy - u * .85, u * 2, u * 1.4, u * .45); x.stroke(); x.beginPath(); x.moveTo(cx - u * .3, cy + u * .55); x.lineTo(cx - u * .6, cy + u); x.lineTo(cx + u * .1, cy + u * .55); x.stroke(); }
+    else { x.beginPath(); x.arc(cx, cy - u * .25, u * .7, Math.PI * .8, Math.PI * 2.2); x.stroke(); x.beginPath(); x.moveTo(cx - u * .35, cy + u * .55); x.lineTo(cx + u * .35, cy + u * .55); x.moveTo(cx - u * .25, cy + u * .9); x.lineTo(cx + u * .25, cy + u * .9); x.stroke(); }
+    x.restore();
+  }
+
+  // ---------- 대표 이미지 ----------
   function thumbCanvas(c) {
-    const t = THEMES[themeIdx]; const [cv, x] = newCanvas();
-    x.fillStyle = t.bg; x.fillRect(0, 0, S, S);
-    x.fillStyle = t.sub; x.globalAlpha = .14; x.beginPath(); x.arc(S * .88, S * .14, 260, 0, Math.PI * 2); x.fill(); x.globalAlpha = 1;
-    x.fillStyle = t.sub; x.font = `600 40px ${FONT_B}`; x.fillText(c.cat || "", M, 110);
-    x.fillRect(M, 172, 72, 6);
-    let size = 112, lines;
-    do { x.font = `800 ${size}px ${FONT_D}`; lines = wrapLines(x, c.thumb || c.titles[0] || c.topic, S - 2 * M); size -= 6; } while ((lines.length > 4 || lines.length * size * 1.3 > 560) && size > 56);
-    size += 6; const lh = size * 1.28; const top = 250 + (560 - lines.length * lh) / 2;
-    x.fillStyle = t.fg; lines.forEach((l, i) => x.fillText(l, M, top + i * lh));
-    x.font = `500 38px ${FONT_B}`; x.fillStyle = t.sub; x.fillText(nickOf(c), M, S - 150);
+    const p = PAL(); const [cv, x] = newCanvas();
+    const title = c.thumb || c.titles[0] || c.topic;
+    if (imgStyle === "magazine") {
+      x.fillStyle = p.bg; x.fillRect(0, 0, S, S); grain(x, p.ink, 9000, .05);
+      x.strokeStyle = p.ink; x.lineWidth = 2; x.strokeRect(44, 44, S - 88, S - 88);
+      x.fillStyle = p.acc; x.font = `700 30px ${FONT_B}`; spaced(x, (c.cat || "").toUpperCase(), M, 110, 6);
+      x.fillStyle = p.sub; x.font = `500 28px ${FONT_B}`; x.textAlign = "right"; x.fillText(todayDot(), S - M, 112); x.textAlign = "left";
+      x.fillStyle = p.ink; x.fillRect(M, 168, S - 2 * M, 2);
+      const f = fitText(x, title, S - 2 * M, 4, 124, 70, 700, FONT_SERIF);
+      const lh = f.size * 1.32; let y = 250 + (520 - f.lines.length * lh) / 2;
+      f.lines.forEach((l, i) => {
+        x.font = `700 ${f.size}px ${FONT_SERIF}`;
+        if (i === f.lines.length - 1) { const w = x.measureText(l).width; x.fillStyle = p.hi; x.globalAlpha = .85; x.fillRect(M - 8, y + f.size * .55, w + 16, f.size * .48); x.globalAlpha = 1; }
+        x.fillStyle = p.ink; x.fillText(l, M, y); y += lh;
+      });
+      x.fillStyle = p.ink; x.fillRect(M, S - 190, 60, 4);
+      x.font = `600 34px ${FONT_SERIF}`; x.fillText(nickOf(c), M, S - 160);
+      return cv;
+    }
+    if (imgStyle === "pastel") {
+      const g = x.createLinearGradient(0, 0, S, S); g.addColorStop(0, p.g1); g.addColorStop(1, p.g2); x.fillStyle = g; x.fillRect(0, 0, S, S);
+      x.fillStyle = "#ffffff"; [[160, 170, 150, .45], [930, 880, 220, .35], [960, 150, 90, .5], [120, 930, 70, .5]].forEach(([a, b, r, al]) => { x.globalAlpha = al; x.beginPath(); x.arc(a, b, r, 0, 7); x.fill(); });
+      x.globalAlpha = 1;
+      x.save(); x.shadowColor = "rgba(0,0,0,.10)"; x.shadowBlur = 50; x.shadowOffsetY = 18; x.fillStyle = "#fff"; rrect(x, 110, 200, S - 220, S - 400, 56); x.fill(); x.restore();
+      x.font = `700 32px ${FONT_B}`; const cw = x.measureText(c.cat || "").width + 56;
+      x.fillStyle = p.acc; rrect(x, (S - cw) / 2, 250, cw, 60, 30); x.fill(); x.fillStyle = "#fff"; x.textAlign = "center"; x.fillText(c.cat || "", S / 2, 262);
+      const f = fitText(x, title, S - 340, 4, 104, 60, 400, FONT_ROUND);
+      const lh = f.size * 1.3; let y = 350 + (330 - f.lines.length * lh) / 2;
+      x.fillStyle = p.ink; f.lines.forEach((l) => { x.fillText(l, S / 2, y); y += lh; });
+      x.fillStyle = p.acc; [-28, 0, 28].forEach((d) => { x.beginPath(); x.arc(S / 2 + d, 730, 7, 0, 7); x.fill(); });
+      x.fillStyle = p.sub; x.font = `500 32px ${FONT_B}`; x.fillText(nickOf(c), S / 2, 770); x.textAlign = "left";
+      // 반짝이
+      x.fillStyle = "#fff"; [[880, 330, 26], [200, 760, 20]].forEach(([a, b, r]) => { x.beginPath(); x.moveTo(a, b - r); x.quadraticCurveTo(a, b, a + r, b); x.quadraticCurveTo(a, b, a, b + r); x.quadraticCurveTo(a, b, a - r, b); x.quadraticCurveTo(a, b, a, b - r); x.fill(); });
+      return cv;
+    }
+    // bold
+    x.fillStyle = p.bg; x.fillRect(0, 0, S, S);
+    x.fillStyle = p.dark; x.beginPath(); x.moveTo(0, S * .78); x.lineTo(S, S * .58); x.lineTo(S, S); x.lineTo(0, S); x.closePath(); x.fill();
+    x.globalAlpha = .12; x.fillStyle = "#fff"; x.font = `400 420px ${FONT_BLACK}`; x.textAlign = "right"; x.fillText("“", S - 30, -40); x.textAlign = "left"; x.globalAlpha = 1;
+    x.font = `400 40px ${FONT_BLACK}`; const lw = x.measureText(c.cat || "").width + 48;
+    x.fillStyle = p.acc; x.fillRect(M, 120, lw, 70); x.fillStyle = p.dark; x.fillText(c.cat || "", M + 24, 133);
+    const f = fitText(x, title, S - 2 * M, 4, 136, 70, 400, FONT_BLACK);
+    const lh = f.size * 1.18; let y = 250;
+    x.fillStyle = "#fff"; f.lines.forEach((l) => { x.fillText(l, M, y); y += lh; });
+    x.fillStyle = p.acc; x.fillRect(M, y + 20, 160, 14);
+    x.fillStyle = "#fff"; x.font = `700 34px ${FONT_B}`; x.fillText(nickOf(c), M, S - 130);
+    x.fillStyle = p.acc; x.textAlign = "right"; x.font = `500 30px ${FONT_B}`; x.fillText(todayDot(), S - M, S - 128); x.textAlign = "left";
     return cv;
   }
   function summaryCanvas(c) {
-    return cardCanvas({ type: "checklist", title: "한눈에 정리", items: c.summary && c.summary.length ? c.summary : [c.titles[0] || c.topic] }, c, "요약", true);
+    return cardCanvas({ type: "checklist", title: "한눈에 정리", items: c.summary && c.summary.length ? c.summary : [c.titles[0] || c.topic] }, c, "SUMMARY", true, 0);
   }
-  // 정리 카드: 위쪽 색 띠 + 제목, 아래 내용
-  function cardCanvas(sp, c, label, numbered) {
-    const t = THEMES[themeIdx]; const [cv, x] = newCanvas();
-    x.fillStyle = t.soft; x.fillRect(0, 0, S, S);
-    x.fillStyle = t.bg; x.fillRect(0, 0, S, 300);
-    // 종류 표시
-    x.font = `700 34px ${FONT_B}`; const lab = label || IMG_TYPES[sp.type] || "";
-    const lw = x.measureText(lab).width + 44;
-    x.fillStyle = t.sub; rrect(x, M, 66, lw, 56, 28); x.fill();
-    x.fillStyle = t.bg; x.fillText(lab, M + 22, 74);
-    // 제목
-    const tt = fitText(x, sp.title || "", S - 2 * M, 2, 68, 48, 800, FONT_D);
-    x.fillStyle = t.fg; tt.lines.forEach((l, i) => x.fillText(l, M, 150 + i * tt.size * 1.2 + (tt.lines.length === 1 ? 22 : -8)));
-    const top = 360, bottom = S - 140, W = S - 2 * M;
-    x.fillStyle = t.ink;
-    const items = sp.items || [];
+
+  // ---------- 정리 카드 ----------
+  const LABEL_EN = { steps: "HOW TO", checklist: "CHECK LIST", keynum: "KEY POINT", compare: "COMPARE", qa: "Q & A", tip: "TIP" };
+  function cardCanvas(sp, c, label, numbered, idx) {
+    const p = PAL(); const [cv, x] = newCanvas();
+    const lab = label || LABEL_EN[sp.type] || "";
+    const no = idx ? String(idx).padStart(2, "0") : "";
+    let area, col;   // 내용 영역과 색
+    if (imgStyle === "magazine") {
+      x.fillStyle = p.bg; x.fillRect(0, 0, S, S); grain(x, p.ink, 7000, .045);
+      x.strokeStyle = p.ink; x.lineWidth = 2; x.strokeRect(44, 44, S - 88, S - 88);
+      x.fillStyle = p.acc; x.font = `700 28px ${FONT_B}`; spaced(x, (no ? `No.${no}  ` : "") + lab, M, 100, 5);
+      x.fillStyle = p.sub; x.font = `500 26px ${FONT_B}`; x.textAlign = "right"; x.fillText(nickOf(c), S - M, 102); x.textAlign = "left";
+      const tt = fitText(x, sp.title || "", S - 2 * M, 2, 76, 52, 700, FONT_SERIF);
+      let ty = 160;
+      tt.lines.forEach((l, i) => {
+        x.font = `700 ${tt.size}px ${FONT_SERIF}`;
+        if (i === tt.lines.length - 1) { const w = x.measureText(l).width; x.fillStyle = p.hi; x.globalAlpha = .8; x.fillRect(M - 6, ty + tt.size * .58, w + 12, tt.size * .42); x.globalAlpha = 1; }
+        x.fillStyle = p.ink; x.fillText(l, M, ty); ty += tt.size * 1.3;
+      });
+      x.fillStyle = p.ink; x.fillRect(M, ty + 18, S - 2 * M, 2);
+      area = { top: ty + 70, bottom: S - 120, left: M, W: S - 2 * M };
+      col = { ink: p.ink, sub: p.sub, acc: p.acc, soft: p.soft, line: p.line, numFg: p.bg, face: FONT_B, bigFace: FONT_SERIF, bigW: 700 };
+    } else if (imgStyle === "pastel") {
+      const g = x.createLinearGradient(0, 0, S, S); g.addColorStop(0, p.g1); g.addColorStop(1, p.g2); x.fillStyle = g; x.fillRect(0, 0, S, S);
+      x.fillStyle = "#fff"; [[100, 120, 110, .4], [990, 990, 170, .35]].forEach(([a, b, r, al]) => { x.globalAlpha = al; x.beginPath(); x.arc(a, b, r, 0, 7); x.fill(); }); x.globalAlpha = 1;
+      x.save(); x.shadowColor = "rgba(0,0,0,.09)"; x.shadowBlur = 44; x.shadowOffsetY = 16; x.fillStyle = "#fff"; rrect(x, 70, 70, S - 140, S - 140, 52); x.fill(); x.restore();
+      icon(x, sp.type, 170, 175, 46, p.acc, p.soft);
+      x.font = `700 26px ${FONT_B}`; x.fillStyle = p.acc; spaced(x, lab, 236, 140, 3);
+      const tt = fitText(x, sp.title || "", S - 380, 2, 60, 44, 400, FONT_ROUND);
+      x.fillStyle = p.ink; tt.lines.forEach((l, i) => x.fillText(l, 236, 178 + i * tt.size * 1.2));
+      const ty = 178 + tt.lines.length * tt.size * 1.2;
+      x.fillStyle = p.line; x.fillRect(130, Math.max(270, ty + 30), S - 260, 3);
+      area = { top: Math.max(270, ty + 30) + 60, bottom: S - 150, left: 140, W: S - 280 };
+      col = { ink: p.ink, sub: p.sub, acc: p.acc, soft: p.soft, line: p.line, numFg: "#fff", face: FONT_B, bigFace: FONT_ROUND, bigW: 400 };
+      x.fillStyle = p.sub; x.font = `500 26px ${FONT_B}`; x.textAlign = "center"; x.fillText(nickOf(c), S / 2, S - 122); x.textAlign = "left";
+    } else {
+      x.fillStyle = p.bg; x.fillRect(0, 0, S, S);
+      x.globalAlpha = .14; x.fillStyle = "#fff"; x.font = `400 230px ${FONT_BLACK}`; x.textAlign = "right"; x.fillText(no || "✓", S - 40, 40); x.textAlign = "left"; x.globalAlpha = 1;
+      x.font = `400 32px ${FONT_BLACK}`; const lw = x.measureText(lab).width + 40;
+      x.fillStyle = p.acc; x.fillRect(M, 90, lw, 56); x.fillStyle = p.dark; x.fillText(lab, M + 20, 100);
+      const tt = fitText(x, sp.title || "", S - 2 * M - 230, 2, 84, 52, 400, FONT_BLACK);
+      x.fillStyle = "#fff"; tt.lines.forEach((l, i) => x.fillText(l, M, 172 + i * tt.size * 1.15));
+      const ty = 172 + tt.lines.length * tt.size * 1.15;
+      x.fillStyle = p.paper; rrect(x, 60, ty + 40, S - 120, S - ty - 100, 30); x.fill();
+      area = { top: ty + 100, bottom: S - 110, left: 110, W: S - 220 };
+      col = { ink: p.ink, sub: p.sub, acc: p.bg, soft: p.soft, line: p.soft, numFg: "#fff", face: FONT_B, bigFace: FONT_BLACK, bigW: 400 };
+      x.fillStyle = "rgba(255,255,255,.85)"; x.font = `600 26px ${FONT_B}`; x.textAlign = "right"; x.fillText(nickOf(c), S - 70, S - 48); x.textAlign = "left";
+    }
+    drawContent(x, sp, area, col, numbered);
+    return cv;
+  }
+
+  function drawContent(x, sp, Ain, C, numbered) {
+    let A = Ain;
+    const items = sp.items || []; const W = A.W, L = A.left;
     if (sp.type === "keynum") {
-      const big = fitText(x, sp.big || "", W, 1, 170, 80, 800, FONT_D);
-      x.fillStyle = t.acc; x.textAlign = "center"; x.fillText(big.lines[0] || "", S / 2, top + 40);
-      let y = top + 40 + big.size * 1.25 + 30;
-      x.fillStyle = t.line; x.fillRect(S / 2 - 60, y - 24, 120, 6);
-      x.fillStyle = t.ink;
-      items.slice(0, 3).forEach((it) => { const f = fitText(x, String(it), W, 2, 44, 34, 500, FONT_B); f.lines.forEach((l) => { x.fillText(l, S / 2, y); y += f.size * 1.4; }); y += 10; });
-      x.textAlign = "left";
-    } else if (sp.type === "compare") {
-      const cols = sp.cols.length === 2 ? sp.cols : ["", ""];
+      const big = fitText(x, sp.big || "", W - 40, 1, 190, 80, C.bigW, C.bigFace);
+      let estH = big.size * 1.5 + 50;
+      items.slice(0, 3).forEach((it) => { const f = fitText(x, String(it), W - 40, 2, 44, 32, 500, C.face); estH += f.lines.length * f.size * 1.45 + 12; });
+      const cy0 = A.top + Math.max(0, (A.bottom - A.top - estH) / 2 - 10);
+      x.fillStyle = C.soft; rrect(x, L, cy0, W, big.size * 1.5, 28); x.fill();
+      x.fillStyle = C.acc; x.textAlign = "center"; x.font = `${C.bigW} ${big.size}px ${C.bigFace}`; x.fillText(big.lines[0] || "", L + W / 2, cy0 + big.size * .22);
+      let y = cy0 + big.size * 1.5 + 50;
+      x.fillStyle = C.ink;
+      items.slice(0, 3).forEach((it) => { const f = fitText(x, String(it), W - 40, 2, 44, 32, 500, C.face); f.lines.forEach((l) => { x.fillText(l, L + W / 2, y); y += f.size * 1.45; }); y += 12; });
+      x.textAlign = "left"; return;
+    }
+    if (sp.type === "compare") {
+      const cols = sp.cols && sp.cols.length === 2 ? sp.cols : ["", ""];
       const rows = items.filter(Array.isArray).slice(0, 4);
-      const c0 = M, c1 = M + W * .32, c2 = M + W * .66, cw = W * .32;
-      x.font = `700 40px ${FONT_B}`; x.fillStyle = t.acc;
-      x.fillText(cols[0], c1 + 10, top); x.fillText(cols[1], c2 + 10, top);
-      let y = top + 70; const rh = Math.min(130, (bottom - y) / Math.max(rows.length, 1));
+      const c0 = L, c1 = L + W * .3, c2 = L + W * .65, cw = W * .33;
+      A = { ...A, top: A.top + Math.max(0, (A.bottom - A.top - (100 + rows.length * 140)) / 2 - 10) };
+      x.fillStyle = C.acc; rrect(x, c1, A.top, cw - 14, 64, 32); x.fill(); rrect(x, c2, A.top, cw - 14, 64, 32); x.fill();
+      x.fillStyle = C.numFg; x.font = `700 32px ${C.face}`; x.textAlign = "center"; x.fillText(cols[0], c1 + (cw - 14) / 2, A.top + 13); x.fillText(cols[1], c2 + (cw - 14) / 2, A.top + 13); x.textAlign = "left";
+      let y = A.top + 100; const rh = Math.min(140, (A.bottom - y) / Math.max(rows.length, 1));
       rows.forEach((r, i) => {
-        x.fillStyle = i % 2 ? t.line : "#ffffff"; x.globalAlpha = i % 2 ? .45 : .8; x.fillRect(M - 10, y - 14, W + 20, rh - 6); x.globalAlpha = 1;
-        x.fillStyle = t.ink;
-        [[r[0], c0 + 6, 700], [r[1], c1 + 10, 500], [r[2], c2 + 10, 500]].forEach(([v, X, w]) => {
-          const f = fitText(x, String(v || ""), cw - 20, 2, 38, 28, w, FONT_B); f.lines.forEach((l, j) => x.fillText(l, X, y + j * f.size * 1.25));
+        if (i) { x.fillStyle = C.line; x.fillRect(L, y - 18, W, 2); }
+        [[r[0], c0, 700, C.sub], [r[1], c1 + 8, 600, C.ink], [r[2], c2 + 8, 600, C.ink]].forEach(([v, X, w, cl]) => {
+          x.fillStyle = cl; const f = fitText(x, String(v || ""), cw - 24, 2, 40, 28, w, C.face); f.lines.forEach((l, j) => x.fillText(l, X, y + j * f.size * 1.3));
         });
         y += rh;
       });
-    } else if (sp.type === "qa" || sp.type === "tip") {
-      x.font = `800 120px ${FONT_D}`; x.fillStyle = t.line; x.fillText(sp.type === "qa" ? "A." : "✓", M, top - 10);
-      const f = fitText(x, sp.note || items.join(" "), W - 150, 7, 50, 34, 500, FONT_B);
-      x.fillStyle = t.ink; f.lines.forEach((l, i) => x.fillText(l, M + 150, top + 10 + i * f.size * 1.5));
-    } else {
-      // steps / checklist
-      const list = items.map(String).slice(0, 6);
-      let size = 46; x.font = `600 ${size}px ${FONT_B}`;
-      const wrapped = () => list.map((it) => wrapLines(x, it, W - 110));
-      let blocks = wrapped(); let total = blocks.reduce((a, b) => a + b.length, 0);
-      while (total * size * 1.4 + list.length * 34 > bottom - top && size > 32) { size -= 4; x.font = `600 ${size}px ${FONT_B}`; blocks = wrapped(); total = blocks.reduce((a, b) => a + b.length, 0); }
-      if (total <= 5 && list.length <= 4) { size = 52; x.font = `600 ${size}px ${FONT_B}`; blocks = wrapped(); }
-      const lh = size * 1.4; let y = top;
-      const numbers = sp.type === "steps" || numbered;
-      blocks.forEach((ls, i) => {
-        const cy = y + size * .62;
-        if (numbers) {
-          if (sp.type === "steps" && i < blocks.length - 1) { x.fillStyle = t.line; x.fillRect(M + 25, cy + 30, 6, ls.length * lh + 4); }
-          x.fillStyle = t.acc; x.beginPath(); x.arc(M + 28, cy, 30, 0, Math.PI * 2); x.fill();
-          x.fillStyle = t.fg; x.font = `800 32px ${FONT_D}`; x.textAlign = "center"; x.fillText(String(i + 1), M + 28, cy - 17); x.textAlign = "left";
-        } else {
-          x.strokeStyle = t.acc; x.lineWidth = 6; rrect(x, M, cy - 26, 52, 52, 10); x.stroke();
-          x.beginPath(); x.moveTo(M + 12, cy); x.lineTo(M + 23, cy + 12); x.lineTo(M + 42, cy - 12); x.stroke();
-        }
-        x.fillStyle = t.ink; x.font = `600 ${size}px ${FONT_B}`;
-        ls.forEach((l, j) => x.fillText(l, M + 90, y + j * lh));
-        y += ls.length * lh + 34;
-      });
+      return;
     }
-    x.fillStyle = t.acc; x.font = `500 32px ${FONT_B}`; x.fillText(nickOf(c), M, S - 96);
-    return cv;
+    if (sp.type === "qa" || sp.type === "tip") {
+      const f = fitText(x, sp.note || items.join(" "), W - 100, 6, 54, 34, 500, C.face);
+      const boxH = Math.min(A.bottom - A.top, 190 + f.lines.length * f.size * 1.55 + 50);
+      const by = A.top + Math.max(0, (A.bottom - A.top - boxH) / 2);
+      x.fillStyle = C.soft; rrect(x, L, by, W, boxH, 30); x.fill();
+      x.fillStyle = C.acc; x.font = `${C.bigW} 110px ${C.bigFace}`; x.fillText(sp.type === "qa" ? "A." : "TIP", L + 44, by + 36);
+      x.fillStyle = C.ink; x.font = `500 ${f.size}px ${C.face}`; f.lines.forEach((l, i) => x.fillText(l, L + 48, by + 190 + i * f.size * 1.55));
+      return;
+    }
+    // steps / checklist
+    const list = items.map(String).slice(0, 6);
+    let size = 48; x.font = `600 ${size}px ${C.face}`;
+    const wrapped = () => list.map((it) => wrapLines(x, it, W - 120));
+    let blocks = wrapped(); let total = blocks.reduce((a, b) => a + b.length, 0);
+    while (total * size * 1.45 + list.length * 40 > A.bottom - A.top && size > 32) { size -= 4; x.font = `600 ${size}px ${C.face}`; blocks = wrapped(); total = blocks.reduce((a, b) => a + b.length, 0); }
+    if (total <= 5 && list.length <= 4) { size = 58; x.font = `600 ${size}px ${C.face}`; blocks = wrapped(); total = blocks.reduce((a, b) => a + b.length, 0); }
+    const lh = size * 1.45; const gap = list.length <= 4 ? 56 : 40;
+    const H = total * lh + (blocks.length - 1) * gap;
+    let y = A.top + Math.max(0, (A.bottom - A.top - H) / 2 - 20);
+    const numbers = sp.type === "steps" || numbered;
+    blocks.forEach((ls, i) => {
+      const cy = y + size * .62;
+      if (numbers) {
+        if (sp.type === "steps" && i < blocks.length - 1) { x.strokeStyle = C.acc; x.globalAlpha = .35; x.lineWidth = 4; x.setLineDash([8, 10]); x.beginPath(); x.moveTo(L + 30, cy + 36); x.lineTo(L + 30, cy + ls.length * lh + 6); x.stroke(); x.setLineDash([]); x.globalAlpha = 1; }
+        x.fillStyle = C.acc; x.beginPath(); x.arc(L + 30, cy, 32, 0, Math.PI * 2); x.fill();
+        x.fillStyle = C.numFg; x.font = `800 32px ${FONT_B}`; x.textAlign = "center"; x.fillText(String(i + 1), L + 30, cy - 21); x.textAlign = "left";
+      } else {
+        x.fillStyle = C.soft; rrect(x, L, cy - 30, 60, 60, 16); x.fill();
+        x.strokeStyle = C.acc; x.lineWidth = 7; x.lineCap = "round"; x.beginPath(); x.moveTo(L + 15, cy + 1); x.lineTo(L + 27, cy + 13); x.lineTo(L + 46, cy - 12); x.stroke();
+      }
+      x.fillStyle = C.ink; x.font = `600 ${size}px ${C.face}`;
+      ls.forEach((l, j) => x.fillText(l, L + 100, y + j * lh));
+      y += ls.length * lh + gap;
+    });
   }
 
   // 갤러리: 대표 → 사진 자리 1..n → 요약
@@ -1353,7 +1487,7 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
   }
   async function drawCards() {
     if (!current) return;
-    try { await Promise.all([document.fonts.load(`800 60px "Gothic A1"`), document.fonts.load(`600 40px "Noto Sans KR"`), document.fonts.load(`500 40px "Noto Sans KR"`), document.fonts.load(`700 40px "Noto Sans KR"`)]); } catch {}
+    try { await Promise.all([`800 60px "Gothic A1"`, `500 40px "Noto Sans KR"`, `600 40px "Noto Sans KR"`, `700 40px "Noto Sans KR"`, `800 40px "Noto Sans KR"`, `700 40px "Gowun Batang"`, `400 40px "Black Han Sans"`, `400 40px "Jua"`].map((f) => document.fonts.load(f, "가나다ABC"))); } catch {}
     drawGallery();
   }
   function drawGallery() {
@@ -1362,13 +1496,13 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     const imgs = Array.isArray(c.images) ? c.images : [];
     const base = (c.topic || "blog").replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 30);
     gallery = [];
-    gallery.push({ cap: "대표 이미지 (글 맨 위)", label: "대표", name: `${base}_00_대표.png`, url: renderToUrl(JSON.stringify(["t", themeIdx, c.thumb, c.cat, c.titles[0], nickOf(c)]), () => thumbCanvas(c)) });
+    gallery.push({ cap: "대표 이미지 (글 맨 위)", label: "대표", name: `${base}_00_대표.png`, url: renderToUrl(JSON.stringify(["t", styleKey(), c.thumb, c.cat, c.titles[0], nickOf(c)]), () => thumbCanvas(c)) });
     mk.forEach((m, i) => {
       const sp = imgs[i];
       gallery.push({ cap: m, label: String(i + 1), name: `${base}_${String(i + 1).padStart(2, "0")}.png`,
-        url: sp ? renderToUrl(JSON.stringify(["c", themeIdx, sp, nickOf(c)]), () => cardCanvas(sp, c)) : "" });
+        url: sp ? renderToUrl(JSON.stringify(["c", styleKey(), i, sp, nickOf(c)]), () => cardCanvas(sp, c, "", false, i + 1)) : "" });
     });
-    gallery.push({ cap: "요약 카드 (마지막 소제목 근처)", label: "요약", name: `${base}_99_요약.png`, url: renderToUrl(JSON.stringify(["s", themeIdx, c.summary, c.titles[0], nickOf(c)]), () => summaryCanvas(c)) });
+    gallery.push({ cap: "요약 카드 (마지막 소제목 근처)", label: "요약", name: `${base}_99_요약.png`, url: renderToUrl(JSON.stringify(["s", styleKey(), c.summary, c.titles[0], nickOf(c)]), () => summaryCanvas(c)) });
     const box = $("gallery"); box.textContent = "";
     gallery.forEach((g) => {
       const fig = document.createElement("div"); fig.className = "gitem";
