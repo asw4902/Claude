@@ -225,20 +225,39 @@ def ask_cli(prompt, web, timeout):
         cmd += ["--allowedTools", "WebSearch", "WebFetch"]
     # API 키가 환경 변수에 있으면 Claude Code가 그 키(유료)를 쓸 수 있으므로, 구독 로그인만 쓰도록 빼고 실행
     env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+    # 오래 걸리므로 30초마다 진행 상황을 창에 표시
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, encoding="utf-8", errors="replace", cwd=str(DATA), env=env)
+    result = {}
+
+    def talk():
+        try:
+            result["out"], result["err"] = proc.communicate(prompt)
+        except Exception as e:   # noqa
+            result["exc"] = e
+    th = threading.Thread(target=talk, daemon=True)
+    th.start()
+    start = time.time()
+    while th.is_alive():
+        th.join(30)
+        if th.is_alive():
+            waited = int(time.time() - start)
+            if waited >= timeout:
+                proc.kill()
+                raise WriterError(f"Claude 응답이 {timeout // 60}분 넘게 없어 중단했습니다.")
+            log(f"    Claude 작업 중… {waited // 60}분 {waited % 60}초 ({'웹 검색 포함, 5~10분 걸릴 수 있음' if web else '1~2분'})")
+    if "exc" in result:
+        raise WriterError(f"Claude Code 실행 실패: {result['exc']}")
+    out_s, err_s = result.get("out") or "", result.get("err") or ""
+    if proc.returncode != 0:
+        raise WriterError("Claude Code 실행 실패: " + (err_s or out_s).strip()[-300:])
     try:
-        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8",
-                           timeout=timeout, cwd=str(DATA), env=env)
-    except subprocess.TimeoutExpired:
-        raise WriterError("Claude 응답이 너무 오래 걸려 중단했습니다.")
-    if r.returncode != 0:
-        raise WriterError("Claude Code 실행 실패: " + (r.stderr or r.stdout)[-300:])
-    try:
-        out = json.loads(r.stdout)
+        out = json.loads(out_s)
         text = out.get("result", "") if isinstance(out, dict) else str(out)
         if isinstance(out, dict) and out.get("is_error"):
-            raise WriterError("Claude Code 오류: " + text[-300:])
+            raise WriterError("Claude Code 오류: " + str(text)[-300:])
     except ValueError:
-        text = r.stdout
+        text = out_s
     return parse_json_loose(text)
 
 
@@ -363,19 +382,21 @@ def _autorun(n):
         autorun_set(status="running", startedAt=now_ms, finishedAt=None, count=0, keywords=[], message="최신 이슈 검색 중")
         cutoff = now_ms - 21 * 86400000
         used = [p.get("keyword", "") for p in posts_all().values() if p.get("createdAt", 0) > cutoff and p.get("keyword")]
-        log(f"자동 작성 시작: {n}편")
+        log(f"자동 작성 시작: {n}편 · 1단계 최신 키워드 검색 (글쓰기 방식: {writer_kind()})")
         r = ask_claude(keyword_prompt(s, n, used), web=True)
         kws = (r.get("keywords") if isinstance(r, dict) else r) or []
         kws = [k for k in kws if isinstance(k, dict) and k.get("keyword")][:n]
         if not kws:
             raise WriterError("키워드를 고르지 못했습니다.")
         autorun_set(keywords=[k["keyword"] for k in kws], message="글 쓰는 중")
+        log("  고른 키워드: " + ", ".join(k["keyword"] for k in kws))
         day = datetime.now().strftime("%Y%m%d")
         done = 0
         for i, k in enumerate(kws, 1):
             if k.get("cat") not in s["cats"]:
                 k["cat"] = s["cats"][0]
             try:
+                log(f"  2단계 {i}/{len(kws)} 글쓰기: {k['keyword']}")
                 r = ask_claude(post_prompt(s, k), web=True)
                 if not isinstance(r, dict) or not isinstance(r.get("body"), str):
                     raise WriterError("본문이 없습니다.")
@@ -847,11 +868,48 @@ def local_ips():
     return sorted(i for i in ips if not i.startswith("127."))
 
 
+def diagnose():
+    print("== 진단 시작 ==")
+    print("파이썬:", sys.version.split()[0])
+    print("글쓰기 방식:", writer_kind())
+    exe = find_claude()
+    print("claude 위치:", exe or "못 찾음")
+    if exe:
+        env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+        print("Claude Code에 짧은 질문을 보내는 중… (최대 3분)")
+        t0 = time.time()
+        try:
+            r = subprocess.run([exe, "-p", "--output-format", "json"], input='"확인"이라는 한 단어만 답해.', capture_output=True,
+                               text=True, encoding="utf-8", errors="replace", timeout=180, cwd=str(DATA), env=env)
+            print(f"  끝난 시간: {time.time() - t0:.0f}초 / 종료 코드: {r.returncode}")
+            print("  응답:", (r.stdout or "").strip()[:400])
+            if r.stderr.strip():
+                print("  오류 출력:", r.stderr.strip()[:600])
+        except subprocess.TimeoutExpired:
+            print("  3분 동안 응답이 없습니다. 명령 프롬프트에서 claude 를 한 번 실행해 로그인·첫 설정 화면이 남아 있는지 확인하세요.")
+    try:
+        from playwright.sync_api import sync_playwright  # noqa
+        print("playwright: 설치됨")
+    except ImportError:
+        print("playwright: 없음 → 설치.bat을 다시 실행하세요")
+    print("네이버 로그인 프로필:", "있음" if (PROFILE / "Default").exists() else "없음 → 네이버 로그인.bat 실행")
+    print("최근 기록 (data/logs/blog_auto.log):")
+    try:
+        print("".join((LOGS / "blog_auto.log").read_text(encoding="utf-8").splitlines(True)[-15:]))
+    except OSError:
+        print("  (기록 없음)")
+    print("== 진단 끝 == 이 창을 캡처해서 보내 주세요.")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--login", action="store_true", help="네이버 로그인 창만 열기")
     ap.add_argument("--write-now", type=int, metavar="N", help="지금 N편 자동 작성 후 종료")
+    ap.add_argument("--diag", action="store_true", help="문제 진단")
     a = ap.parse_args()
+    if a.diag:
+        diagnose()
+        return
     if a.login:
         sys.exit(0 if do_login() else 1)
     if a.write_now:
