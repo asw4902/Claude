@@ -58,6 +58,8 @@ h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; marg
 .panel h2 { font-family: var(--font-display); font-size: 1rem; font-weight: 800; margin: 0 0 12px; }
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 label, .label { font-size: .85rem; font-weight: 500; color: var(--muted); }
+.labelrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.linkbtn { font: inherit; font-size: .85rem; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 6px 0; min-height: 0; cursor: pointer; }
 input[type=text], input[type=password], textarea, select {
   font: inherit; font-size: 16px; /* 16px 이상이어야 iPad Safari가 확대하지 않음 */
   color: var(--ink); background: var(--bg);
@@ -78,6 +80,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 }
 .chip input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.banner { font-size: .85rem; background: var(--warn-soft); color: var(--ink); border-radius: 10px; padding: 8px 12px; margin-top: 4px; }
 .check { display: flex; align-items: center; gap: 8px; font-size: .95rem; min-height: 40px; }
 .check input { width: 20px; height: 20px; accent-color: var(--accent); }
 button, .btn {
@@ -101,7 +104,9 @@ button:disabled { opacity: .55; cursor: default; }
 .titles label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; color: var(--ink); font-size: 1rem; font-weight: 500; }
 .titles input { margin-top: 5px; accent-color: var(--accent); width: 18px; height: 18px; flex: none; }
 .titles label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-#body { min-height: 380px; line-height: 1.75; }
+#body { min-height: 420px; line-height: 1.75; }
+.refine { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+.refine > * { flex: 1 1 160px; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
 .tag { font-size: .88rem; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -114,6 +119,16 @@ button:disabled { opacity: .55; cursor: default; }
 .checklist ul { margin: 0; padding-left: 20px; font-size: .9rem; }
 .checklist li.ok { color: var(--muted); }
 .checklist li.no { color: var(--warn); }
+.imgplan { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.imgplan li { display: flex; gap: 10px; align-items: flex-start; font-size: .92rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.imgplan .n { flex: none; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; min-width: 2.2em; }
+.imgplan .k { flex: none; font-size: .78rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 8px; }
+.card { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.card img { width: 100%; max-width: 100%; aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--line); display: block; -webkit-touch-callout: default; }
+.swatches { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.sw { width: 36px; height: 36px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--line); }
+.sw[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--panel) inset; }
 .steps { margin: 14px 0 0; padding-left: 20px; color: var(--muted); font-size: .9rem; }
 .steps li { margin-bottom: 4px; }
 details { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
@@ -144,12 +159,15 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
       <h2>무엇을 쓸까요?</h2>
 
       <div class="field">
-        <span class="label">카테고리</span>
-        <div class="chips">
-          <label class="chip"><input type="radio" name="cat" value="정부지원·복지" checked><span>정부지원·복지</span></label>
-          <label class="chip"><input type="radio" name="cat" value="주거·청약"><span>주거·청약</span></label>
-          <label class="chip"><input type="radio" name="cat" value="생활 꿀팁"><span>생활 꿀팁</span></label>
-          <label class="chip"><input type="radio" name="cat" value="일상 이야기"><span>일상 이야기</span></label>
+        <div class="labelrow">
+          <span class="label">카테고리</span>
+          <button type="button" class="linkbtn" id="editCats">카테고리 편집</button>
+        </div>
+        <div class="chips" id="cats"></div>
+        <div class="banner" id="catBanner" hidden>내 네이버 블로그의 카테고리 이름으로 바꿔 주세요. ‘카테고리 편집’을 누르면 한 줄에 하나씩 적을 수 있어요.</div>
+        <div id="catEditor" hidden>
+          <textarea id="catText" rows="6" aria-label="카테고리 목록, 한 줄에 하나"></textarea>
+          <div class="actions" style="margin-top:8px"><button type="button" class="primary" id="saveCats">카테고리 저장</button></div>
         </div>
       </div>
 
@@ -162,64 +180,79 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
         <input type="text" id="keywords" placeholder="예: 근로장려금 신청, 근로장려금 대상">
       </div>
 
-      <div class="field" id="srcField">
-        <label for="source">공식 자료 붙여넣기 (정부24·고용24·정책브리핑·LH 공고 등)</label>
-        <textarea id="source" rows="5" placeholder="공고문이나 보도자료 내용을 그대로 붙여넣으세요. 금액·대상·기간은 여기 적힌 것만 씁니다."></textarea>
-        <div class="row2">
-          <input type="text" id="srcName" placeholder="출처 기관 (예: 국세청)">
-          <input type="text" id="srcDate" placeholder="확인한 날짜">
-        </div>
+      <div class="field">
+        <label for="exp">내 경험·메모 (사람이 쓴 글처럼 보이는 핵심)</label>
+        <textarea id="exp" rows="4" placeholder="예: 작년에 홈택스로 직접 신청했는데 본인인증에서 30분 헤맸다. 결국 손택스 앱으로 했고, 9월 말에 87만 원 들어옴. 아내가 먼저 알려줬음."></textarea>
+        <div class="note">날짜·장소·숫자·누구와·어떤 기분이었는지를 짧게 적을수록 내 글처럼 나옵니다. 비워 두면 경험을 지어내지 않고 [직접 쓰기] 자리만 남깁니다.</div>
       </div>
 
       <div class="field">
-        <label for="exp">내 경험 한 단락 (승인에 가장 중요)</label>
-        <textarea id="exp" rows="3" placeholder="예: 작년에 홈택스로 직접 신청해 봤는데 본인인증에서 한참 헤맸어요. 결국 손택스 앱으로…"></textarea>
-        <div class="note">비워 두면 AI가 지어내지 않고, 직접 채울 자리만 표시해 둡니다.</div>
+        <label for="source">참고 자료 (선택: 공고문·보도자료·설명서 붙여넣기)</label>
+        <textarea id="source" rows="3" placeholder="정부24·복지로·국세청 공고 등을 붙여넣으면 금액·대상·기간은 여기 적힌 것만 씁니다."></textarea>
+        <div class="row2">
+          <input type="text" id="srcName" placeholder="출처 (예: 국세청)" aria-label="출처">
+          <input type="text" id="srcDate" placeholder="확인한 날짜" aria-label="확인한 날짜">
+        </div>
       </div>
 
       <div class="row2">
         <div class="field">
           <label for="tone">말투</label>
           <select id="tone">
-            <option value="정중한 합니다체">정중한 합니다체</option>
             <option value="친근한 해요체">친근한 해요체</option>
+            <option value="담백한 합니다체">담백한 합니다체</option>
+            <option value="편한 혼잣말체(~했다)">혼잣말체 (~했다)</option>
           </select>
         </div>
         <div class="field">
-          <label for="length">분량</label>
+          <label for="length">분량 (공백 제외)</label>
           <select id="length">
-            <option value="1800" selected>보통 (약 1,800자)</option>
-            <option value="2500">길게 (약 2,500자)</option>
-            <option value="3200">아주 길게 (약 3,200자)</option>
+            <option value="3000" selected>3,000자 이상</option>
+            <option value="3500">3,500자 이상</option>
+            <option value="4000">4,000자 이상</option>
           </select>
         </div>
       </div>
 
-      <div class="field">
-        <label for="extra">그 밖에 넣을 내용 (선택)</label>
-        <textarea id="extra" rows="2" placeholder="예: 신청 기간 놓치기 쉬운 점 강조, 50대 맞벌이 기준으로"></textarea>
+      <div class="row2">
+        <div class="field">
+          <label for="imgCount">이미지</label>
+          <select id="imgCount">
+            <option value="5~7" selected>5~7장</option>
+            <option value="8~10">8~10장</option>
+            <option value="3~4">3~4장</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="extra">그 밖에 (선택)</label>
+          <input type="text" id="extra" placeholder="예: 맞벌이 기준으로">
+        </div>
       </div>
 
-      <details open>
+      <details>
         <summary>블로그 설정</summary>
         <div class="field" style="margin-top:10px">
           <span class="label">어디에 올리나요?</span>
           <div class="chips">
-            <label class="chip"><input type="radio" name="platform" value="tistory" checked><span>티스토리</span></label>
-            <label class="chip"><input type="radio" name="platform" value="naver"><span>네이버 블로그</span></label>
+            <label class="chip"><input type="radio" name="platform" value="naver" checked><span>네이버 블로그</span></label>
+            <label class="chip"><input type="radio" name="platform" value="tistory"><span>티스토리</span></label>
           </div>
         </div>
         <div class="row2">
           <div class="field">
-            <label for="nick">닉네임</label>
-            <input type="text" id="nick" placeholder="빈스파파">
+            <label for="nick">블로그 이름·닉네임</label>
+            <input type="text" id="nick" placeholder="팜로그랩">
           </div>
           <div class="field">
-            <label for="blogId" id="blogIdLabel">블로그 주소</label>
-            <input type="text" id="blogId" placeholder="thewise">
+            <label for="blogId" id="blogIdLabel">블로그 아이디</label>
+            <input type="text" id="blogId" placeholder="panlog-lab">
           </div>
         </div>
-        <label class="check"><input type="checkbox" id="emoji"> 이모지 조금 사용</label>
+        <div class="field">
+          <label for="persona">나는 어떤 사람? (글에 묻어날 내 모습)</label>
+          <textarea id="persona" rows="2"></textarea>
+        </div>
+        <label class="check"><input type="checkbox" id="emoji" checked> 이모지 조금 사용</label>
       </details>
 
       <div id="keyBox" hidden>
@@ -244,22 +277,20 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     <section class="panel" id="result" aria-live="polite">
       <div class="empty" id="empty">
         <strong>주제를 넣고 ‘글 만들기’를 누르세요</strong>
-        <p>제목 후보 3개, 본문, 태그를 만들고, 발행 전에 애드센스 기준으로 한 번 점검해 줍니다.</p>
+        <p>3,000자 이상 본문, 제목 후보 3개, 태그, 사진 넣을 자리, 대표 이미지·요약 카드를 만들어 줍니다.</p>
         <div class="rules">
-          <h3>애드센스 승인 정리안의 글쓰기 규칙이 들어 있어요</h3>
+          <h3>내가 쓴 것처럼 쓰는 규칙</h3>
           <ul>
-            <li>50대 가장의 눈으로, 쉬운 말로 씁니다.</li>
-            <li>금액·대상·기간은 붙여넣은 공식 자료에 있는 것만 씁니다.</li>
-            <li>제도 글 끝에 확인한 날짜와 출처 기관을 적습니다.</li>
-            <li>직접 찍은 화면 캡처 자리 1~2곳과 본인 경험 한 단락을 넣습니다.</li>
-            <li>“답부터 적겠습니다”, “자료에 잘려 있었습니다”처럼 자동글 티가 나는 문장은 쓰지 않습니다.</li>
-            <li>글마다 시작 방식을 바꿔 같은 틀로 보이지 않게 합니다.</li>
+            <li>내 경험·메모에 적은 날짜, 숫자, 사람, 기분을 본문 곳곳에 녹입니다.</li>
+            <li>짧은 문장과 긴 문장을 섞고, 혼잣말이나 솔직한 감상을 가끔 넣습니다.</li>
+            <li>“알아보겠습니다”, “결론적으로”, “다양한”, “도움이 되셨길 바랍니다”처럼 AI 글 티가 나는 말은 쓰지 않습니다.</li>
+            <li>첫째·둘째 나열, 매번 같은 시작과 끝맺음을 피합니다.</li>
+            <li>모르는 숫자는 지어내지 않고 [공고 확인] 자리로 남깁니다.</li>
           </ul>
-          <h3>올리는 습관</h3>
+          <h3>이미지</h3>
           <ul>
-            <li>하루 1개씩 꾸준히, 한 번에 몰아 올리지 않기</li>
-            <li>카테고리마다 최소 3~4개씩</li>
-            <li>건강·의료, 상품 홍보, 날짜 지나면 쓸모없는 행사 글은 피하기</li>
+            <li>본문 흐름에 맞춰 [사진: 무엇을 어떻게 찍을지] 자리를 표시합니다.</li>
+            <li>대표 이미지(썸네일)와 한눈에 보는 요약 카드를 바로 만들어 사진 앱에 저장할 수 있습니다.</li>
           </ul>
         </div>
       </div>
@@ -272,9 +303,28 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
 
         <h2>본문</h2>
         <div class="meta" id="count"></div>
-        <textarea id="body" spellcheck="false"></textarea>
+        <textarea id="body" spellcheck="false" aria-label="본문"></textarea>
+        <div class="refine">
+          <button type="button" id="longer">3,000자 채우기</button>
+          <button type="button" id="humanize">내 말투로 더 자연스럽게</button>
+        </div>
 
-        <h2 style="margin-top:14px">태그</h2>
+        <h2>이미지</h2>
+        <ul class="imgplan" id="imgplan"></ul>
+        <div class="swatches" id="swatches" role="group" aria-label="카드 색"></div>
+        <div class="cards">
+          <div class="card">
+            <img id="thumbImg" alt="대표 이미지">
+            <button type="button" id="saveThumb">대표 이미지 저장</button>
+          </div>
+          <div class="card">
+            <img id="sumImg" alt="요약 카드">
+            <button type="button" id="saveSum">요약 카드 저장</button>
+          </div>
+        </div>
+        <div class="note" style="margin-bottom:14px">저장이 안 되면 이미지를 길게 눌러 ‘사진 앱에 저장’을 고르세요. 대표 이미지는 글 맨 위에, 요약 카드는 마지막 소제목 근처에 넣으면 좋아요.</div>
+
+        <h2>태그</h2>
         <div class="tags" id="tags"></div>
 
         <div class="actions">
@@ -283,14 +333,13 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
           <button type="button" class="primary" id="cpTags">③ 태그 복사</button>
         </div>
         <div class="actions" style="margin-top:8px">
-          <a class="btn" id="openWrite" href="#" target="_blank" rel="noopener">글쓰기 화면 열기 ↗</a>
-          <button type="button" id="again">다시 만들기</button>
+          <a class="btn" id="openWrite" href="#" target="_blank" rel="noopener">글쓰기 열기 ↗</a>
+          <button type="button" id="again">새로 다시 쓰기</button>
         </div>
         <ol class="steps">
-          <li>‘글쓰기 화면 열기’로 블로그 글쓰기 화면을 엽니다. Split View로 나란히 두면 편해요.</li>
-          <li>제목 → 본문 → 태그 순서로 복사해 붙여넣고, 카테고리를 고릅니다.</li>
-          <li>[캡처: …] 자리에 직접 찍은 화면을, [직접 쓰기: …] 자리에 내 이야기를 채웁니다.</li>
-          <li>위 점검 목록이 모두 통과하면 발행합니다.</li>
+          <li>‘글쓰기 열기’로 블로그 글쓰기 화면을 엽니다. Split View로 나란히 두면 편해요.</li>
+          <li>제목 → 본문 → 태그 순서로 붙여넣고 카테고리를 고릅니다.</li>
+          <li>[사진] 자리마다 사진을 넣고 표시 글자를 지웁니다. [직접 쓰기] 자리는 내 이야기로 채웁니다.</li>
         </ol>
       </div>
     </section>
@@ -306,29 +355,32 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   };
 
-  let sample = null;
+  let sample = null, downloads = null;
   let backend = "none";   // "claude" | "api"
   let ctl = null;
   let current = null;
 
-  // ---------- 애드센스 정리안에서 가져온 규칙 ----------
-  // 자동글 티가 나서 지워야 하는 문구 (정리안 5번 표)
+  // ---------- 글 규칙 ----------
+  // 보이기만 해도 AI 글 티가 나는 말 (애드센스 정리안 + 흔한 AI 문체)
   const BANNED = [
-    "답부터 적겠습니다", "답부터 말씀", "제가 이 글을 정리한 건", "제가 이 글을 정리한 이유",
-    "자료에 잘려", "숫자를 지어낼", "확정하지 못했", "참고용으로만 봐", "수집)",
-    "인공지능이", "챗GPT", "요약하자면", "결론부터 말씀",
+    "알아보겠습니다", "알아볼게요", "살펴보겠습니다", "살펴볼게요", "결론적으로", "요약하자면", "정리하자면",
+    "결론부터 말씀", "답부터 적겠습니다", "제가 이 글을 정리한", "이번 포스팅에서는", "오늘 포스팅에서는",
+    "도움이 되셨길", "도움이 되셨기를", "도움이 되었으면 좋겠습니다", "자료에 잘려", "숫자를 지어낼",
+    "확정하지 못했", "참고용으로만 봐", "수집)", "챗GPT", "인공지능이", "첫째,", "둘째,", "셋째,",
   ];
-  const OFFICIAL_HINT = "정부24, 고용24, 복지로, 홈택스, 대한민국 정책브리핑, 국토교통부, LH청약플러스, SH, 마이홈포털 같은 공식 기관";
-  // 같은 틀 반복을 피하려고 글마다 시작 방식을 바꿈
+  // 한두 번은 괜찮지만 반복되면 기계적인 말
+  const OVERUSE = { "다양한": 1, "중요합니다": 1, "것이 좋습니다": 2, "할 수 있습니다": 3, "또한": 2, "뿐만 아니라": 1 };
   const OPENINGS = [
-    "내가 겪은 짧은 장면 하나로 시작",
-    "독자가 자주 묻는 질문 하나를 던지며 시작",
-    "이 제도·정보를 몰라서 손해 보기 쉬운 상황을 짚으며 시작",
-    "최근 바뀐 점 한 가지를 먼저 알려 주며 시작",
-    "주변 사람(가족·이웃·직장 동료)과 나눈 대화로 시작",
+    "내가 겪은 짧은 장면 하나로 바로 시작 (언제, 어디서, 무슨 일)",
+    "가족이나 지인이 나에게 물어본 말 한마디로 시작",
+    "처음에 내가 잘못 알고 있었던 것을 털어놓으며 시작",
+    "요즘 내 상황이나 날씨·계절 이야기로 가볍게 시작하다 주제로 넘어가기",
+    "이걸 몰라서 손해 볼 뻔했던 순간으로 시작",
   ];
+  const DEFAULT_CATS = ["정부지원·복지", "주거·청약", "생활 꿀팁", "일상 이야기"];
+  const DEFAULT_PERSONA = "가족과 평범하게 사는 50대 가장. 지원 제도나 생활 정보를 직접 찾아보고 겪어 본 걸 쉬운 말로 정리한다. 꾸밈없고 솔직한 편.";
 
-  // ---------- 연결 방식 ----------
+  // ---------- 연결 ----------
   function useApiKeyMode() {
     backend = "api";
     $("keyBox").hidden = false;
@@ -340,100 +392,146 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
       if (s) { sample = s; backend = "claude"; $("mode").innerHTML = "연결: <b>Claude 계정</b> (API 키 필요 없음)"; }
       else useApiKeyMode();
     }).catch(useApiKeyMode);
+    window.claude.use("downloads").then((d) => { downloads = d; }).catch(() => {});
   } else {
     useApiKeyMode();
   }
 
+  // ---------- 카테고리 ----------
+  let cats = store.get("cats", null);
+  function drawCats(selected) {
+    const list = cats || DEFAULT_CATS; const box = $("cats"); box.textContent = "";
+    list.forEach((c, i) => {
+      const l = document.createElement("label"); l.className = "chip";
+      const r = document.createElement("input"); r.type = "radio"; r.name = "cat"; r.value = c;
+      r.checked = selected ? c === selected : i === 0;
+      const s = document.createElement("span"); s.textContent = c;
+      l.append(r, s); box.append(l);
+    });
+    if (!box.querySelector("input:checked") && box.querySelector("input")) box.querySelector("input").checked = true;
+    $("catBanner").hidden = !!cats;
+  }
+  $("editCats").onclick = () => {
+    const ed = $("catEditor"); ed.hidden = !ed.hidden;
+    if (!ed.hidden) { $("catText").value = (cats || DEFAULT_CATS).join("\n"); $("catText").focus(); }
+  };
+  $("saveCats").onclick = () => {
+    const list = $("catText").value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 30);
+    if (!list.length) { toast("카테고리를 하나 이상 적어 주세요."); return; }
+    cats = list; store.set("cats", cats); $("catEditor").hidden = true; drawCats(); toast("카테고리 저장됨");
+  };
+
   // ---------- 입력값 ----------
   const today = () => { const d = new Date(); return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`; };
-  const fields = ["topic", "keywords", "source", "srcName", "srcDate", "exp", "tone", "length", "extra", "nick", "blogId"];
-  const saved = store.get("form2", null);
+  const fields = ["topic", "keywords", "source", "srcName", "srcDate", "exp", "tone", "length", "imgCount", "extra", "nick", "blogId", "persona"];
+  const saved = store.get("form3", null);
   if (saved) {
-    fields.forEach((f) => { if (saved[f] != null) $(f).value = saved[f]; });
-    [["cat", saved.cat], ["platform", saved.platform]].forEach(([n, v]) => {
-      const r = v && document.querySelector(`input[name=${n}][value="${v}"]`); if (r) r.checked = true;
-    });
-    $("emoji").checked = !!saved.emoji;
+    fields.forEach((f) => { if (saved[f] != null && $(f)) $(f).value = saved[f]; });
+    const r = saved.platform && document.querySelector(`input[name=platform][value="${saved.platform}"]`); if (r) r.checked = true;
+    $("emoji").checked = saved.emoji !== false;
   } else {
-    $("nick").value = "빈스파파"; $("blogId").value = "thewise";
+    $("nick").value = "팜로그랩"; $("blogId").value = "panlog-lab"; $("persona").value = DEFAULT_PERSONA;
   }
   if (!$("srcDate").value) $("srcDate").value = today();
+  drawCats(saved && saved.cat);
 
-  const radio = (n) => document.querySelector(`input[name=${n}]:checked`).value;
+  const radio = (n) => { const r = document.querySelector(`input[name=${n}]:checked`); return r ? r.value : ""; };
   function readForm() {
     const o = {}; fields.forEach((f) => o[f] = $(f).value.trim());
     o.cat = radio("cat"); o.platform = radio("platform"); o.emoji = $("emoji").checked;
+    o.minLen = parseInt(o.length, 10) || 3000;
     return o;
   }
-
   function syncPlatform() {
     const p = radio("platform");
-    $("blogIdLabel").textContent = p === "tistory" ? "티스토리 주소 (○○○.tistory.com)" : "네이버 아이디 (선택)";
-    $("blogId").placeholder = p === "tistory" ? "thewise" : "naver_id";
-    $("srcField").hidden = radio("cat") === "일상 이야기";
+    $("blogIdLabel").textContent = p === "tistory" ? "티스토리 주소 (○○.tistory.com)" : "네이버 블로그 아이디";
+    $("blogId").placeholder = p === "tistory" ? "thewise" : "panlog-lab";
   }
-  document.querySelectorAll("input[name=platform], input[name=cat]").forEach((r) => r.addEventListener("change", syncPlatform));
+  document.querySelectorAll("input[name=platform]").forEach((r) => r.addEventListener("change", () => { syncPlatform(); if (current) render(current); }));
   syncPlatform();
 
   function writeUrl() {
-    const p = radio("platform"); const id = $("blogId").value.trim().replace(/\.tistory\.com.*$/, "").replace(/^https?:\/\//, "");
+    const p = radio("platform"); const id = $("blogId").value.trim().replace(/^https?:\/\//, "").replace(/\.tistory\.com.*$/, "").replace(/^(m\.)?blog\.naver\.com\//, "").replace(/\/.*$/, "");
     if (p === "tistory") return id ? `https://${id}.tistory.com/manage/newpost/` : "https://www.tistory.com/";
     return id ? `https://blog.naver.com/${id}?Redirect=Write` : "https://blog.naver.com/GoBlogWrite.naver";
   }
 
   // ---------- 프롬프트 ----------
+  function voiceRules(o) {
+    return [
+      "[사람이 쓴 글처럼 — 가장 중요]",
+      `- 글쓴이: ${o.persona || DEFAULT_PERSONA} 블로그 이름은 '${o.nick || "내 블로그"}'.`,
+      `- 말투: ${o.tone}. 블로그 이웃에게 말하듯 편하게. 너무 매끄럽고 완벽한 문장보다 실제 사람이 쓴 듯한 자연스러운 흐름.`,
+      "- 짧은 문장(3~8자)과 긴 문장을 섞어 리듬을 만들 것. 가끔 혼잣말이나 솔직한 감정(예: '솔직히 좀 귀찮았어요', '이건 진짜 몰랐네요')을 넣을 것.",
+      "- 글쓴이의 경험·메모에 있는 구체적인 날짜, 장소, 숫자, 사람, 감정을 여러 소제목에 나눠서 녹일 것. 메모에 없는 경험은 지어내지 말 것.",
+      "- 소제목마다 같은 구조(설명→정리→팁)를 반복하지 말 것. 어떤 단락은 이야기로, 어떤 단락은 짧은 팁으로.",
+      "- 다음 표현은 절대 쓰지 말 것: '알아보겠습니다/살펴보겠습니다', '결론적으로', '요약하자면', '정리하자면', '이번 포스팅에서는', '도움이 되셨길 바랍니다', '첫째·둘째·셋째', '답부터 적겠습니다', '자료에 잘려', '확정하지 못했습니다', '참고용으로만'.",
+      "- '다양한', '중요합니다', '~것이 좋습니다', '또한', '뿐만 아니라'는 거의 쓰지 말 것.",
+      `- 이모지: ${o.emoji ? "글 전체에 3~5개만, 감정 표현할 때" : "쓰지 않기"}. 'ㅎㅎ'는 써도 1~2번.`,
+      "- 마크다운 기호(#, **, -, 표) 쓰지 말고 일반 텍스트. 한 문단 1~4문장, 문단 사이 빈 줄.",
+      "- AI, 인공지능, 챗GPT 언급 금지. 과장 광고 문구 금지.",
+    ];
+  }
+
   function buildPrompt(o) {
-    const isPolicy = o.cat === "정부지원·복지" || o.cat === "주거·청약";
     const opening = OPENINGS[Math.floor(Math.random() * OPENINGS.length)];
     const L = [];
-    L.push(`너는 '${o.nick || "블로그 주인"}'이라는 닉네임으로 블로그를 운영하는 50대 가장이야. 가족과 평범하게 사는 사람으로서, 어려운 제도와 생활 정보를 직접 찾아보고 쉬운 말로 정리해 주는 블로그야.`);
-    L.push(`이 블로그는 구글 애드센스 승인을 준비 중이라 '직접 경험이 담긴, 사람이 쓴 가치 있는 글'로 보여야 해.`);
+    L.push(`너는 네이버 블로그를 직접 운영하는 사람으로서 자기 블로그에 올릴 글을 쓴다.`);
     L.push("");
     L.push("[글 조건]");
     L.push(`- 카테고리: ${o.cat}`);
     L.push(`- 주제: ${o.topic}`);
-    L.push(`- 핵심 키워드: ${o.keywords || "(주제에서 1~2개 뽑기)"}`);
-    L.push(`- 말투: ${o.tone}`);
-    L.push(`- 본문 분량: 공백 포함 약 ${o.length}자 (최소 1,500자)`);
-    L.push(`- 시작 방식: ${opening}`);
-    L.push(`- 이모지: ${o.emoji ? "소제목 앞에만 가끔" : "쓰지 않기"}`);
+    L.push(`- 핵심 키워드: ${o.keywords || "(주제에서 1~2개 뽑기)"} — 제목 앞쪽, 첫 문단, 본문에 4~6번 자연스럽게.`);
+    L.push(`- 분량: 본문 공백 제외 ${o.minLen.toLocaleString()}자 이상 (공백 포함 약 ${Math.round(o.minLen * 1.3).toLocaleString()}자). 반드시 채울 것. 소제목 5~7개, 소제목마다 공백 제외 450자 이상.`);
+    L.push(`- 시작: ${opening}. '안녕하세요'로 시작하지 말 것.`);
     if (o.extra) L.push(`- 추가 요청: ${o.extra}`);
+    L.push("- 소제목 줄은 '■ '로 시작.");
+    L.push("- 마무리: 짧게. 내 다음 계획이나 독자에게 건네는 한마디. 뻔한 인사말 금지.");
     L.push("");
-    if (o.exp) {
-      L.push("[글쓴이의 실제 경험 — 본문 중간에 자연스럽게 녹여서, 사실을 바꾸거나 부풀리지 말 것]");
-      L.push(o.exp);
+    L.push(...voiceRules(o));
+    L.push("");
+    if (o.exp) { L.push("[글쓴이의 실제 경험·메모 — 사실을 바꾸거나 부풀리지 말 것]"); L.push(o.exp); }
+    else L.push("[글쓴이 경험] 없음. 경험을 지어내지 말고, 경험이 들어가면 좋을 곳 2~3군데에 한 줄로 '[직접 쓰기: 어떤 경험을 쓰면 좋을지]'라고 표시.");
+    L.push("");
+    if (o.source) {
+      L.push(`[참고 자료 — 출처: ${o.srcName || "공식 자료"}] 금액·대상·기준·기간·방법 같은 사실은 아래 자료에 있는 것만 쓸 것.`);
+      L.push(o.source.slice(0, 30000));
+      L.push(`본문 맨 끝에 빈 줄 후 '확인일: ${o.srcDate || today()} · 출처: ${o.srcName || "[출처]"}' 한 줄.`);
     } else {
-      L.push("[글쓴이 경험] 없음. 경험을 지어내지 말고, 경험이 들어가면 좋을 곳에 한 줄로 '[직접 쓰기: 어떤 경험을 쓰면 좋을지]'라고만 표시해.");
+      L.push("[참고 자료] 없음. 확실하지 않은 금액·기준·날짜는 지어내지 말고 '[공고 확인: 무엇]'으로 한 줄 표시. 제도 이야기면 독자가 확인할 곳으로 정부24·복지로·홈택스 같은 공식 기관만 안내.");
     }
     L.push("");
-    if (isPolicy) {
-      if (o.source) {
-        L.push(`[공식 자료 — 출처: ${o.srcName || "공식 기관"}] 금액·대상·소득 기준·기간·신청 방법은 반드시 아래 자료에 있는 내용만 써. 자료에 없는 숫자는 쓰지 마.`);
-        L.push(o.source.slice(0, 30000));
-      } else {
-        L.push(`[공식 자료] 없음. 금액·기준·날짜 같은 구체적인 숫자는 절대 지어내지 말고 '[공고 확인: 무엇]'이라고 한 줄로 표시해. 독자가 확인할 곳으로 ${OFFICIAL_HINT}만 안내해.`);
-      }
-      L.push("");
-    }
-    L.push("[구성]");
-    L.push("- 첫 문단 2~3문장: 위 '시작 방식'대로. 인사말('안녕하세요')로 시작하지 말 것.");
-    L.push("- 소제목 3~5개. 소제목 줄은 '■ '로 시작.");
-    if (isPolicy) L.push("- 제도 글이면: 누가 받을 수 있나 → 얼마/무엇을 받나 → 언제·어떻게 신청하나 → 놓치기 쉬운 점 순서를 기본으로 하되, 주제에 맞게 조정.");
-    L.push("- 직접 찍은 화면 캡처가 들어가면 좋은 곳 1~2군데에 한 줄로 '[캡처: 무슨 화면]' 표시.");
-    L.push("- 한 문단은 2~4문장, 문단 사이 빈 줄. 마크다운 기호(#, **, -, 표) 쓰지 말고 일반 텍스트로.");
-    L.push("- 핵심 키워드는 첫 문단에 1번, 본문에 3~4번 자연스럽게.");
-    L.push("- 마무리 문단은 짧게, 이 정보가 필요한 독자에게 건네는 한마디로.");
-    if (isPolicy) L.push(`- 본문 맨 끝에 빈 줄 후 한 줄: '확인일: ${o.srcDate || today()} · 출처: ${o.srcName || "[출처 기관]"}' 그리고 다음 줄에 '제도는 자주 바뀌니 신청 전에 해당 기관 공지를 한 번 더 확인해 주세요.'`);
-    L.push("");
-    L.push("[절대 쓰지 말 것 — 자동글처럼 보임]");
-    L.push("- '답부터 적겠습니다', '제가 이 글을 정리한 건…', '결론부터 말씀드리면', '요약하자면' 같은 틀에 박힌 문구");
-    L.push("- '자료에 잘려 있었습니다', '숫자를 지어낼 수는 없으니', '확정하지 못했습니다', '참고용으로만 봐 주세요'처럼 글 쓰는 과정이나 자료 부족을 드러내는 문장");
-    L.push("- '(○월 ○일 수집)' 같은 수집 표시, 공식 기관이 아닌 낯선 사이트 이름");
-    L.push("- AI, 인공지능, 챗GPT 언급. 특정 상품 홍보, 건강·의료 조언.");
+    L.push("[이미지 자리]");
+    L.push(`- 본문 흐름에 맞춰 이미지 ${o.imgCount}장 자리를 표시. 각 자리는 단독 한 줄로 '[사진: 무엇을 어떻게 찍은 사진 — 예: 손택스 앱 신청 첫 화면 캡처]'.`);
+    L.push("- 실제로 글쓴이가 찍거나 캡처할 수 있는 구체적인 장면으로. 소제목 바로 아래나 설명이 끝난 곳에 고르게 배치. 같은 종류만 반복하지 말 것.");
     L.push("");
     L.push("반드시 아래 JSON 하나만 답해. 다른 말은 쓰지 마.");
-    L.push('{"titles": ["제목 후보1", "제목 후보2", "제목 후보3"], "body": "본문 전체(줄바꿈은 \\n)", "tags": ["태그1", "... 6~10개, # 없이"]}');
-    L.push("제목은 30자 안팎, 핵심 키워드를 앞쪽에 넣고 과장·낚시 표현('충격', '무조건', '모르면 손해') 금지.");
+    L.push('{"titles": ["제목1", "제목2", "제목3"], "body": "본문 전체(줄바꿈은 \\n)", "tags": ["태그", "... 8~12개, # 없이"], "thumb": "대표 이미지에 넣을 문구 (14자 안팎, 줄바꿈 1번 가능)", "summary": ["요약 카드 문장 4~5개, 각각 22자 이내"]}');
+    L.push("제목은 25~35자, 사람이 붙인 것처럼 담백하게. '충격', '무조건', '모르면 손해', '총정리' 금지.");
+    return L.join("\n");
+  }
+
+  function refinePrompt(o, body, mode) {
+    const L = [];
+    if (mode === "longer") {
+      const now = body.replace(/\s/g, "").length;
+      L.push(`아래 블로그 본문은 공백 제외 ${now.toLocaleString()}자야. 공백 제외 ${Math.max(o.minLen, now + 600).toLocaleString()}자 이상이 되도록 늘려줘.`);
+      L.push("- 늘리는 방법: 각 소제목에 실제로 도움이 되는 구체적인 설명, 헷갈리기 쉬운 점, 글쓴이 메모에 있는 경험의 디테일을 보탠다. 같은 말 반복이나 군더더기 금지.");
+      L.push("- 메모에 없는 경험이나 확인 안 된 숫자는 지어내지 말 것. 필요하면 [직접 쓰기: …] 또는 [공고 확인: …] 자리로.");
+      L.push("- 기존 [사진: …] 자리는 그대로 두고, 늘어난 분량에 맞게 1~2개 더해도 된다.");
+    } else {
+      L.push("아래 블로그 본문을 글쓴이가 직접 쓴 것처럼 다시 다듬어줘. 내용·사실·숫자·[ ] 표시는 그대로 두고 문체만 바꿔.");
+      L.push("- 기계적으로 매끄러운 문장, 같은 문장 끝맺음 반복, 나열식 구성을 깨고 리듬을 다양하게.");
+      L.push("- 분량은 줄이지 말 것.");
+    }
+    L.push("");
+    L.push(...voiceRules(o));
+    if (o.exp) { L.push(""); L.push("[글쓴이 경험·메모]"); L.push(o.exp); }
+    L.push("");
+    L.push("[현재 본문]");
+    L.push(body);
+    L.push("");
+    L.push('반드시 JSON 하나만 답해: {"body": "고친 본문 전체(줄바꿈은 \\n)"}');
     return L.join("\n");
   }
 
@@ -446,36 +544,32 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     throw new Error("결과를 읽지 못했어요. 다시 시도해 주세요.");
   }
 
-  // ---------- 생성 ----------
+  // ---------- 호출 ----------
   const ERR = {
     not_granted: "Claude 사용을 허락하지 않아 글을 만들 수 없어요. 페이지를 새로 열면 다시 물어봐요.",
     rate_limited: "요청이 많아요. 잠시 뒤에 다시 눌러 주세요.",
     session_expired: "claude.ai에 다시 로그인해 주세요.",
     sampling_disabled: "이 계정에서는 Claude 호출을 쓸 수 없어요.",
     refused: "이 주제로는 글을 만들 수 없었어요. 주제를 바꿔 보세요.",
-    invalid_json: "결과 형식이 깨졌어요. 다시 만들기를 눌러 주세요.",
+    invalid_json: "결과가 너무 길거나 형식이 깨졌어요. 다시 눌러 주세요.",
     prompt_too_large: "붙여넣은 자료가 너무 길어요. 필요한 부분만 남겨 주세요.",
   };
 
-  async function viaClaude(prompt, onProgress) {
+  async function ask(prompt, onProgress) {
     ctl = new AbortController();
-    return sample.json(prompt, { signal: ctl.signal, cache: false, onText: ({ text }) => onProgress(text.length) });
-  }
-
-  async function viaApi(prompt, onProgress) {
+    if (backend === "claude") {
+      return sample.json(prompt, { signal: ctl.signal, cache: false, onText: ({ text }) => onProgress(text.length) });
+    }
     const key = $("apikey").value.trim();
     if (!key) throw new Error("API 키를 입력해 주세요.");
     store.set("apikey", key);
-    ctl = new AbortController();
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST", signal: ctl.signal,
       headers: {
-        "content-type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
+        "content-type": "application/json", "x-api-key": key,
+        "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true",
       },
-      body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 8000, stream: true, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 16000, stream: true, messages: [{ role: "user", content: prompt }] }),
     });
     if (!res.ok) {
       let msg = `오류 ${res.status}`;
@@ -500,71 +594,204 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
   }
 
   function setBusy(b) {
-    $("go").disabled = b; $("again").disabled = b; $("stop").hidden = !b;
-    $("go").textContent = b ? "쓰는 중…" : "글 만들기";
+    ["go", "again", "longer", "humanize"].forEach((id) => $(id).disabled = b);
+    $("stop").hidden = !b; $("go").textContent = b ? "쓰는 중…" : "글 만들기";
   }
   function status(msg, err) { $("status").textContent = msg; $("status").classList.toggle("err", !!err); }
+  function showError(e) {
+    if (e && (e.code === "cancelled" || e.name === "AbortError")) status("멈췄어요.");
+    else if (e && e.code) status(ERR[e.code] || "잠시 문제가 생겼어요. 다시 눌러 주세요.", true);
+    else status((e && e.message) || "잠시 문제가 생겼어요.", true);
+  }
+  const cleanBody = (s) => String(s).replace(/\\n/g, "\n").replace(/\r/g, "").trim();
 
   async function generate() {
     const o = readForm();
     if (!o.topic) { status("주제를 입력해 주세요.", true); $("topic").focus(); return; }
-    store.set("form2", o);
+    store.set("form3", o);
     if (backend === "none") { status("연결 확인 중이에요. 잠시 뒤 다시 눌러 주세요.", true); return; }
-    setBusy(true); status("생각하는 중… (보통 20~60초)");
+    setBusy(true); status("생각하는 중… (3,000자 글은 보통 1~2분)");
     const t0 = Date.now();
-    const onProgress = (n) => status(`쓰는 중… ${n.toLocaleString()}자 받음`);
     try {
-      const prompt = buildPrompt(o);
-      const r = backend === "claude" ? await viaClaude(prompt, onProgress) : await viaApi(prompt, onProgress);
+      const r = await ask(buildPrompt(o), (n) => status(`쓰는 중… ${n.toLocaleString()}자 받음`));
       if (!r || typeof r.body !== "string") throw new Error("결과를 읽지 못했어요. 다시 시도해 주세요.");
       current = {
-        topic: o.topic, cat: o.cat, platform: o.platform,
+        topic: o.topic, cat: o.cat, minLen: o.minLen, nick: o.nick,
         titles: (Array.isArray(r.titles) ? r.titles : [String(r.titles || o.topic)]).map(String).slice(0, 3),
-        body: r.body.replace(/\\n/g, "\n").trim(),
-        tags: (Array.isArray(r.tags) ? r.tags : []).map((t) => String(t).replace(/^#/, "").trim()).filter(Boolean).slice(0, 10),
+        body: cleanBody(r.body),
+        tags: (Array.isArray(r.tags) ? r.tags : []).map((t) => String(t).replace(/^#/, "").trim()).filter(Boolean).slice(0, 12),
+        thumb: String(r.thumb || o.topic).replace(/\\n/g, "\n").slice(0, 40),
+        summary: (Array.isArray(r.summary) ? r.summary : []).map(String).slice(0, 5),
         at: Date.now(),
       };
       render(current); saveHistory(current);
-      status(`완료 (${Math.round((Date.now() - t0) / 1000)}초)`);
-    } catch (e) {
-      if (e && (e.code === "cancelled" || e.name === "AbortError")) status("멈췄어요.");
-      else if (e && e.code) status(ERR[e.code] || "잠시 문제가 생겼어요. 다시 눌러 주세요.", true);
-      else status((e && e.message) || "잠시 문제가 생겼어요.", true);
-    } finally { setBusy(false); ctl = null; }
+      const n = current.body.replace(/\s/g, "").length;
+      status(`완료 (${Math.round((Date.now() - t0) / 1000)}초)` + (n < o.minLen ? ` · ${n.toLocaleString()}자라서 ‘3,000자 채우기’를 눌러 보세요` : ""));
+    } catch (e) { showError(e); } finally { setBusy(false); ctl = null; }
   }
 
-  // ---------- 발행 전 점검 (애드센스 정리안 기준) ----------
-  function audit(body, cat) {
+  async function refine(mode) {
+    if (!current) return;
+    const o = readForm(); o.minLen = current.minLen || o.minLen;
+    setBusy(true); status(mode === "longer" ? "본문을 늘리는 중…" : "말투를 다듬는 중…");
+    try {
+      const r = await ask(refinePrompt(o, $("body").value, mode), (n) => status(`고치는 중… ${n.toLocaleString()}자 받음`));
+      if (!r || typeof r.body !== "string" || r.body.length < 200) throw new Error("결과를 읽지 못했어요. 다시 시도해 주세요.");
+      current.body = cleanBody(r.body); render(current, true); saveHistory(current);
+      status(`고쳤어요 · 공백 제외 ${current.body.replace(/\s/g, "").length.toLocaleString()}자`);
+    } catch (e) { showError(e); } finally { setBusy(false); ctl = null; }
+  }
+
+  // ---------- 발행 전 점검 ----------
+  const countOf = (s, w) => s.split(w).length - 1;
+  const markers = (body) => [...body.matchAll(/\[(사진|캡처)\s*\d*\s*:\s*([^\]]+)\]/g)].map((m) => m[2].trim());
+  function audit(body, minLen) {
     const items = [];
     const len = body.replace(/\s/g, "").length;
-    items.push([len >= 1500, `공백 제외 ${len.toLocaleString()}자 ${len >= 1500 ? "" : "— 1,500자 이상 권장"}`]);
+    items.push([len >= minLen, `공백 제외 ${len.toLocaleString()}자` + (len >= minLen ? "" : ` — ${minLen.toLocaleString()}자까지 ${(minLen - len).toLocaleString()}자 부족`)]);
     const hits = BANNED.filter((b) => body.includes(b));
-    items.push([!hits.length, hits.length ? `자동글 티 나는 문구: “${hits.join("”, “")}” — 지우거나 바꾸세요` : "자동글 티 나는 문구 없음"]);
-    const caps = (body.match(/\[캡처:[^\]]*\]/g) || []).length;
-    items.push([caps === 0, caps ? `[캡처] 자리 ${caps}곳 — 직접 찍은 화면으로 바꾸고 표시 글자는 지우세요` : "캡처 자리 표시 모두 정리됨 (캡처 1~2장 넣었는지 확인)"]);
-    const mine = (body.match(/\[직접 쓰기:[^\]]*\]/g) || []).length;
-    items.push([mine === 0, mine ? `[직접 쓰기] 자리 ${mine}곳 — 내 경험으로 채우세요` : "직접 쓰기 자리 없음"]);
-    const conf = (body.match(/\[(공고 확인|출처 기관)[^\]]*\]/g) || []).length;
-    if (conf || cat === "정부지원·복지" || cat === "주거·청약") {
-      items.push([conf === 0, conf ? `[공고 확인] 자리 ${conf}곳 — 공식 공고의 숫자로 채우세요` : "확인 안 된 숫자 자리 없음"]);
-      items.push([/확인일/.test(body), /확인일/.test(body) ? "확인일·출처 줄 있음" : "끝에 ‘확인일 · 출처’ 줄을 넣으세요"]);
-    }
+    items.push([!hits.length, hits.length ? `AI 글 티 나는 말: “${hits.join("”, “")}”` : "AI 글 티 나는 말 없음"]);
+    const over = Object.entries(OVERUSE).filter(([w, max]) => countOf(body, w) > max).map(([w]) => `${w} ${countOf(body, w)}번`);
+    items.push([!over.length, over.length ? `자주 반복되는 말: ${over.join(", ")}` : "반복되는 말투 없음"]);
+    const ends = body.split(/(?<=[.!?])\s+/).map((s) => s.trim().slice(-3)).filter((s) => s.length === 3);
+    let run = 1, maxRun = 1; for (let i = 1; i < ends.length; i++) { run = ends[i] === ends[i - 1] ? run + 1 : 1; maxRun = Math.max(maxRun, run); }
+    items.push([maxRun < 4, maxRun < 4 ? "문장 끝맺음이 고르게 섞여 있음" : `같은 끝맺음이 ${maxRun}문장 연속 — 몇 개만 바꿔 주세요`]);
+    const imgs = markers(body).length;
+    items.push([imgs >= 3, `사진 자리 ${imgs}곳 + 대표 이미지·요약 카드 2장`]);
+    const mine = countOf(body, "[직접 쓰기");
+    items.push([mine === 0, mine ? `[직접 쓰기] ${mine}곳 — 내 경험으로 채우면 훨씬 내 글 같아져요` : "직접 쓰기 자리 없음"]);
+    const conf = countOf(body, "[공고 확인");
+    items.push([conf === 0, conf ? `[공고 확인] ${conf}곳 — 공식 자료의 숫자로 채우세요` : "확인 안 된 숫자 자리 없음"]);
     return items;
   }
   function drawAudit() {
     if (!current) return;
-    const items = audit($("body").value, current.cat);
+    const items = audit($("body").value, current.minLen || 3000);
     const box = $("check"); box.textContent = "";
-    const bad = items.some(([ok]) => !ok);
-    box.classList.toggle("bad", bad);
+    const bad = items.some(([ok]) => !ok); box.classList.toggle("bad", bad);
     const h = document.createElement("h3"); h.textContent = bad ? "발행 전에 손볼 곳" : "발행 전 점검 통과"; box.append(h);
     const ul = document.createElement("ul");
     items.forEach(([ok, t]) => { const li = document.createElement("li"); li.className = ok ? "ok" : "no"; li.textContent = (ok ? "✓ " : "! ") + t; ul.append(li); });
     box.append(ul);
   }
+  function drawImgPlan() {
+    const ul = $("imgplan"); ul.textContent = "";
+    const add = (n, kind, text) => {
+      const li = document.createElement("li");
+      const a = document.createElement("span"); a.className = "n"; a.textContent = n;
+      const b = document.createElement("span"); b.textContent = text; b.style.minWidth = "0";
+      const k = document.createElement("span"); k.className = "k"; k.textContent = kind;
+      li.append(a, b, k); ul.append(li);
+    };
+    add("대표", "자동 생성", "글 맨 위: 아래 대표 이미지");
+    markers($("body").value).forEach((m, i) => add(String(i + 1), /캡처|화면/.test(m) ? "캡처" : "직접 촬영", m));
+    add("요약", "자동 생성", "마지막 소제목 근처: 아래 요약 카드");
+  }
+
+  // ---------- 이미지 카드 (캔버스) ----------
+  const THEMES = [
+    { name: "숲", bg: "#24513f", fg: "#f6f1e4", sub: "#cfe3d6", soft: "#eef3ec", ink: "#1f2a24", acc: "#2f6b52" },
+    { name: "바다", bg: "#1f4766", fg: "#f3f6f8", sub: "#c6d7e5", soft: "#eef3f7", ink: "#1b2732", acc: "#2a5f88" },
+    { name: "노을", bg: "#a24a25", fg: "#fff6ec", sub: "#f3d2bd", soft: "#fbf2ea", ink: "#2d1d14", acc: "#a24a25" },
+    { name: "먹", bg: "#26292c", fg: "#f4f2ec", sub: "#c9c6bd", soft: "#f2f1ed", ink: "#1f2124", acc: "#4a4f55" },
+  ];
+  let themeIdx = store.get("theme", 0) % THEMES.length;
+  function drawSwatches() {
+    const box = $("swatches"); box.textContent = "";
+    const lab = document.createElement("span"); lab.className = "label"; lab.textContent = "카드 색"; box.append(lab);
+    THEMES.forEach((t, i) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.style.background = t.bg;
+      b.setAttribute("aria-label", t.name); b.setAttribute("aria-pressed", String(i === themeIdx));
+      b.onclick = () => { themeIdx = i; store.set("theme", i); drawSwatches(); drawCards(); };
+      box.append(b);
+    });
+  }
+  function wrapLines(ctx, text, maxW) {
+    const out = [];
+    String(text).split("\n").forEach((para) => {
+      let line = "";
+      for (const word of para.split(/(\s+)/)) {
+        const tryLine = line + word;
+        if (ctx.measureText(tryLine).width <= maxW) { line = tryLine; continue; }
+        if (line.trim()) { out.push(line.trim()); line = ""; }
+        // 띄어쓰기 없는 긴 단어는 글자 단위로 자름
+        for (const ch of word.trimStart()) {
+          if (ctx.measureText(line + ch).width > maxW && line) { out.push(line); line = ""; }
+          line += ch;
+        }
+      }
+      if (line.trim()) out.push(line.trim());
+    });
+    return out;
+  }
+  const FONT_D = '"Gothic A1", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
+  const FONT_B = '"Noto Sans KR", "Apple SD Gothic Neo", sans-serif';
+  function thumbCanvas(c) {
+    const t = THEMES[themeIdx]; const S = 1080;
+    const cv = document.createElement("canvas"); cv.width = cv.height = S; const x = cv.getContext("2d");
+    x.fillStyle = t.bg; x.fillRect(0, 0, S, S);
+    x.fillStyle = t.sub; x.globalAlpha = .14; x.beginPath(); x.arc(S * .88, S * .14, 260, 0, Math.PI * 2); x.fill(); x.globalAlpha = 1;
+    x.fillStyle = t.sub; x.font = `600 40px ${FONT_B}`; x.textBaseline = "top";
+    x.fillText(c.cat || "", 96, 110);
+    x.fillRect(96, 172, 72, 6);
+    let size = 112, lines;
+    do { x.font = `800 ${size}px ${FONT_D}`; lines = wrapLines(x, c.thumb || c.titles[0], S - 192); size -= 6; } while ((lines.length > 4 || lines.length * size * 1.3 > 560) && size > 56);
+    size += 6; const lh = size * 1.28; const top = 250 + (560 - lines.length * lh) / 2;
+    x.fillStyle = t.fg; lines.forEach((l, i) => x.fillText(l, 96, top + i * lh));
+    x.font = `500 38px ${FONT_B}`; x.fillStyle = t.sub; x.fillText(c.nick || "", 96, S - 150);
+    return cv;
+  }
+  function summaryCanvas(c) {
+    const t = THEMES[themeIdx]; const S = 1080;
+    const cv = document.createElement("canvas"); cv.width = cv.height = S; const x = cv.getContext("2d");
+    x.fillStyle = t.soft; x.fillRect(0, 0, S, S);
+    x.fillStyle = t.bg; x.fillRect(0, 0, S, 200);
+    x.textBaseline = "middle"; x.fillStyle = t.fg; x.font = `800 64px ${FONT_D}`; x.fillText("한눈에 정리", 96, 100);
+    const pts = c.summary.length ? c.summary : [c.titles[0]];
+    x.textBaseline = "top"; let y = 270; const maxW = S - 96 - 170;
+    let size = 46; x.font = `600 ${size}px ${FONT_B}`;
+    const blocks = pts.map((p) => wrapLines(x, p, maxW));
+    const total = blocks.reduce((a, b) => a + b.length, 0);
+    if (total > 9) { size = 38; x.font = `600 ${size}px ${FONT_B}`; }
+    else if (total <= 6) { size = 54; x.font = `600 ${size}px ${FONT_B}`; y = 300; }
+    const lh = size * 1.4;
+    blocks.forEach((ls, i) => {
+      x.fillStyle = t.acc; x.beginPath(); x.arc(126, y + size * .6, 26, 0, Math.PI * 2); x.fill();
+      x.fillStyle = t.fg; x.font = `800 30px ${FONT_D}`; x.textAlign = "center"; x.fillText(String(i + 1), 126, y + size * .6 - 16); x.textAlign = "left";
+      x.fillStyle = t.ink; x.font = `600 ${size}px ${FONT_B}`;
+      wrapLines(x, pts[i], maxW).forEach((l, j) => x.fillText(l, 180, y + j * lh));
+      y += ls.length * lh + 36;
+    });
+    x.fillStyle = t.acc; x.font = `500 34px ${FONT_B}`; x.fillText(c.nick || "", 96, S - 110);
+    return cv;
+  }
+  let thumbBlob = null, sumBlob = null;
+  async function drawCards() {
+    if (!current) return;
+    try { await Promise.all([document.fonts.load(`800 60px "Gothic A1"`), document.fonts.load(`600 40px "Noto Sans KR"`), document.fonts.load(`500 40px "Noto Sans KR"`)]); } catch {}
+    const a = thumbCanvas(current), b = summaryCanvas(current);
+    $("thumbImg").src = a.toDataURL("image/png"); $("sumImg").src = b.toDataURL("image/png");
+    a.toBlob((bl) => thumbBlob = bl, "image/png"); b.toBlob((bl) => sumBlob = bl, "image/png");
+  }
+  async function saveImage(blob, name) {
+    if (!blob) return;
+    if (downloads) {
+      try { await downloads.save({ filename: name, data: blob }); toast("저장했어요"); }
+      catch (e) { if (e && e.code !== "declined") toast("저장이 안 되면 이미지를 길게 눌러 ‘사진 앱에 저장’을 고르세요."); }
+      return;
+    }
+    if (!(window.claude && window.claude.use)) {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000); return;
+    }
+    toast("이미지를 길게 눌러 ‘사진 앱에 저장’을 고르세요.");
+  }
+  const fileBase = () => (current ? current.topic : "blog").replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 30);
+  $("saveThumb").onclick = () => saveImage(thumbBlob, `${fileBase()}_대표.png`);
+  $("saveSum").onclick = () => saveImage(sumBlob, `${fileBase()}_요약.png`);
 
   // ---------- 표시 ----------
-  function render(c) {
+  function render(c, keepScroll) {
     $("empty").hidden = true; $("out").hidden = false;
     const box = $("titles"); box.textContent = "";
     c.titles.forEach((t, i) => {
@@ -573,33 +800,33 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
       const s = document.createElement("span"); s.textContent = t;
       l.append(r, s); box.append(l);
     });
-    $("body").value = c.body; updateCount(); drawAudit();
+    $("body").value = c.body; updateCount(); drawAudit(); drawImgPlan(); drawSwatches(); drawCards();
     const tg = $("tags"); tg.textContent = "";
     c.tags.forEach((t) => { const s = document.createElement("span"); s.className = "tag"; s.textContent = "#" + t; tg.append(s); });
+    $("longer").textContent = `${(c.minLen || 3000).toLocaleString()}자 채우기`;
     $("openWrite").href = writeUrl();
     $("openWrite").textContent = (radio("platform") === "tistory" ? "티스토리" : "네이버 블로그") + " 글쓰기 열기 ↗";
-    if (window.matchMedia("(max-width: 900px)").matches) $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!keepScroll && window.matchMedia("(max-width: 900px)").matches) $("result").scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function updateCount() {
-    const v = $("body").value; const n = v.replace(/\s/g, "").length;
-    $("count").innerHTML = `공백 포함 ${v.length.toLocaleString()}자 · <span class="${n < 1500 ? "low" : ""}">공백 제외 ${n.toLocaleString()}자</span>`;
+    const v = $("body").value; const n = v.replace(/\s/g, "").length; const min = current ? current.minLen || 3000 : 3000;
+    $("count").innerHTML = `공백 포함 ${v.length.toLocaleString()}자 · <span class="${n < min ? "low" : ""}">공백 제외 ${n.toLocaleString()}자</span> / 목표 ${min.toLocaleString()}자`;
   }
   let auditTimer;
   $("body").addEventListener("input", () => {
     updateCount();
-    clearTimeout(auditTimer); auditTimer = setTimeout(drawAudit, 300);
+    clearTimeout(auditTimer); auditTimer = setTimeout(() => { drawAudit(); drawImgPlan(); }, 400);
     if (current) { current.body = $("body").value; saveHistory(current); }
   });
   $("blogId").addEventListener("change", () => { $("openWrite").href = writeUrl(); });
-  document.querySelectorAll("input[name=platform]").forEach((r) => r.addEventListener("change", () => { if (current) render(current); }));
 
   // ---------- 기록 ----------
   function saveHistory(c) {
-    const h = store.get("history", []).filter((x) => x.at !== c.at);
-    h.unshift(c); store.set("history", h.slice(0, 20)); drawHistory();
+    const h = store.get("history3", []).filter((x) => x.at !== c.at);
+    h.unshift(c); store.set("history3", h.slice(0, 20)); drawHistory();
   }
   function drawHistory() {
-    const h = store.get("history", []); const ul = $("hist"); ul.textContent = "";
+    const h = store.get("history3", []); const ul = $("hist"); ul.textContent = "";
     if (!h.length) { const li = document.createElement("li"); li.className = "note"; li.textContent = "아직 없어요. 만든 글은 이 기기에 20개까지 저장돼요."; ul.append(li); return; }
     h.forEach((c) => {
       const li = document.createElement("li"); const b = document.createElement("button"); b.type = "button";
@@ -615,7 +842,7 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
   let toastTimer;
   function toast(msg) {
     const t = $("toast"); t.textContent = msg; t.hidden = false;
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2200);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2400);
   }
   function fallbackCopy(text) {
     const ta = document.createElement("textarea"); ta.value = text;
@@ -643,7 +870,6 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
       return `<p>${esc(b).replace(/\n/g, "<br>")}</p>`;
     }).join("\n");
   }
-  // 본문은 소제목이 제목 서식으로 붙도록 서식 있는 복사를 먼저 시도
   function copyBody() {
     const text = $("body").value;
     try {
@@ -652,7 +878,7 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
           "text/html": new Blob([toHtml(text)], { type: "text/html" }),
           "text/plain": new Blob([text], { type: "text/plain" }),
         });
-        navigator.clipboard.write([item]).then(() => toast("본문 복사됨 (소제목 서식 포함)"), () => copyPlain(text, "본문"));
+        navigator.clipboard.write([item]).then(() => toast("본문 복사됨"), () => copyPlain(text, "본문"));
         return;
       }
     } catch {}
@@ -663,7 +889,6 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
   $("cpBody").onclick = () => current && copyBody();
   $("cpTags").onclick = () => {
     if (!current) return;
-    // 티스토리 태그 칸은 쉼표, 네이버는 #태그 형식
     const t = radio("platform") === "tistory" ? current.tags.join(", ") : current.tags.map((x) => "#" + x).join(" ");
     copyPlain(t, "태그");
   };
@@ -671,6 +896,8 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
   // ---------- 이벤트 ----------
   $("form").addEventListener("submit", (e) => { e.preventDefault(); generate(); });
   $("again").onclick = generate;
+  $("longer").onclick = () => refine("longer");
+  $("humanize").onclick = () => refine("humanize");
   $("stop").onclick = () => ctl && ctl.abort();
 })();
 </script>
