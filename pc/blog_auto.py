@@ -433,7 +433,41 @@ def _autorun(n):
 JOBS = queue.Queue()
 
 
+COOKIES_PATH = DATA / "naver_cookies.json"   # 네이버 로그인 쿠키 (이 PC에만 저장)
+
+
+def save_cookies(ctx):
+    """'로그인 상태 유지'를 안 켜면 네이버 로그인 쿠키가 브라우저를 닫을 때 사라지므로 따로 저장해 둔다."""
+    try:
+        ck = [c for c in ctx.cookies() if "naver.com" in c.get("domain", "")]
+        if any(c.get("name") == "NID_AUT" for c in ck):
+            write_json(COOKIES_PATH, ck)
+    except Exception as e:
+        log("  쿠키 저장 실패:", e)
+
+
+def restore_cookies(ctx):
+    if not COOKIES_PATH.exists():
+        return
+    try:
+        have = {(c["name"], c.get("domain")) for c in ctx.cookies()}
+        ck = [c for c in read_json(COOKIES_PATH, []) if (c["name"], c.get("domain")) not in have]
+        for c in ck:   # 만료 시간이 없거나 지난 값은 세션 쿠키로 넣음
+            if c.get("expires", -1) != -1 and c["expires"] < time.time():
+                c["expires"] = -1
+        if ck:
+            ctx.add_cookies(ck)
+    except Exception as e:
+        log("  쿠키 복원 실패:", e)
+
+
 def browser_context(p, headless=None):
+    ctx = _launch(p, headless)
+    restore_cookies(ctx)
+    return ctx
+
+
+def _launch(p, headless=None):
     PROFILE.mkdir(parents=True, exist_ok=True)
     hl = CFG.get("headless", False) if headless is None else headless
     if os.environ.get("BLOG_AUTO_HEADLESS"):
@@ -466,8 +500,9 @@ def do_login():
         log("열린 크롬 창에서 네이버에 직접 로그인하세요. (로그인 상태 유지 체크 권장) 최대 10분 기다립니다.")
         for _ in range(600):
             if is_logged_in(ctx):
+                time.sleep(3)   # 로그인 직후 나머지 쿠키가 다 들어올 때까지
+                save_cookies(ctx)
                 log("네이버 로그인 확인됨. 이 PC에 저장했습니다.")
-                time.sleep(2)
                 ctx.close()
                 return True
             if not ctx.pages:
@@ -549,6 +584,7 @@ def publish_post(job):
         ctx = browser_context(p)
         try:
             if not is_logged_in(ctx) and not os.environ.get("BLOG_AUTO_WRITE_URL"):
+                log("  저장된 로그인 정보가 없거나 만료됐습니다.")
                 raise RuntimeError("네이버 로그인이 필요합니다. '네이버 로그인.bat'을 실행해 직접 로그인하세요.")
             page = ctx.pages[0] if ctx.pages else ctx.new_page()
             page.goto(os.environ.get("BLOG_AUTO_WRITE_URL") or f"https://blog.naver.com/{blog_id}?Redirect=Write&", wait_until="domcontentloaded")
@@ -604,6 +640,7 @@ def publish_post(job):
                 time.sleep(0.5)
                 if re.search(r"logNo=\d+|/\d{9,}", page.url):
                     break
+            save_cookies(ctx)
             return {"ok": True, "url": page.url, "message": "발행 완료"}
         except Exception as e:
             shot = LOGS / f"fail_{job['id']}_{datetime.now():%H%M%S}.png"
