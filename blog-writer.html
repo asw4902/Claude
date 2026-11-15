@@ -208,6 +208,8 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
 .gitem .cap { font-size: .82rem; color: var(--muted); line-height: 1.4; display: flex; gap: 6px; align-items: flex-start; }
 .gitem .cap b { color: var(--accent); flex: none; font-variant-numeric: tabular-nums; }
 .gitem button { min-height: 36px; padding: 6px 10px; font-size: .85rem; }
+.pcpub { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--accent); }
+.pcpub .note a { color: var(--info); }
 .srclist { margin: 0 0 14px; padding-left: 20px; font-size: .9rem; }
 .srclist a { color: var(--info); word-break: break-all; }
 @media (prefers-reduced-motion: no-preference) { button { transition: filter .12s; } button:active { filter: brightness(.92); } }
@@ -377,6 +379,14 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
               </div>
             </div>
             <div class="note" id="pHint"></div>
+            <div class="pcpub" id="pcPub" hidden>
+              <div class="actions">
+                <button type="button" class="primary" id="pcSchedule">예약 시간에 PC가 자동 발행</button>
+                <button type="button" id="pcNow">지금 바로 발행</button>
+                <button type="button" id="pcDraft">임시저장으로 시험</button>
+              </div>
+              <div class="note" id="pcPubState" style="margin-top:6px"></div>
+            </div>
           </div>
 
           <h2>제목 고르기</h2>
@@ -428,11 +438,12 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     <section class="panel autopanel" id="autoPanel">
       <div>
         <h2>자동: 매일 아침 최신 이슈로 10편</h2>
-        <p>매일 오전 5시 47분, Claude가 웹에서 최신 뉴스와 정부 발표를 검색해 내 블로그 카테고리에 맞는 키워드 10개를 고르고, 찾은 자료를 근거로 글을 써서 ‘검토·발행’에 넣어 둡니다. 다 쓰면 휴대폰으로 알림이 갑니다. 카테고리·말투·분량·‘나는 어떤 사람’은 이 앱 설정을 그대로 씁니다.</p>
+        <p id="autoDesc">매일 오전 5시 47분, Claude가 웹에서 최신 뉴스와 정부 발표를 검색해 내 블로그 카테고리에 맞는 키워드 10개를 고르고, 찾은 자료를 근거로 글을 써서 ‘검토·발행’에 넣어 둡니다. 다 쓰면 휴대폰으로 알림이 갑니다. 카테고리·말투·분량·‘나는 어떤 사람’은 이 앱 설정을 그대로 씁니다.</p>
       </div>
       <div class="side">
         <div class="autostate" id="autoState">마지막 실행 기록 없음</div>
         <button type="button" class="primary" id="runNow">지금 바로 찾아서 쓰기</button>
+        <button type="button" id="pcLogin" hidden>PC에서 네이버 로그인 창 열기</button>
         <div class="note" id="runNote">20~40분 걸립니다. 앱을 닫아도 계속 씁니다.</div>
       </div>
       <div class="kwlist" id="autoKw"></div>
@@ -543,6 +554,23 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     picked: "선정", scheduled: "예약 완료", published: "발행 완료", hold: "보류",
   };
 
+  // ---------- PC 버전 (blog_auto.py가 띄운 주소로 열었을 때) ----------
+  let pcMode = false;
+  const pcReady = (async () => {
+    if (window.claude || !/^https?:$/.test(location.protocol) || /claude\.ai$/.test(location.hostname)) return;
+    try { const r = await fetch("/api/ping", { cache: "no-store" }); const j = await r.json(); pcMode = !!(j && j.pc); } catch {}
+  })();
+  async function pcFetch(path, opts = {}, retried) {
+    const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {}, { "X-Pin": local.get("pcpin", "") });
+    const r = await fetch(path, Object.assign({}, opts, { headers }));
+    if (r.status === 401 && !retried) {
+      const pin = window.prompt("PC 프로그램 창에 나온 접속 비밀번호(숫자 6자리)를 넣어 주세요.");
+      if (pin) { local.set("pcpin", pin.trim()); return pcFetch(path, opts, true); }
+    }
+    if (!r.ok) throw new Error(r.status === 401 ? "접속 비밀번호가 맞지 않아요." : `PC 프로그램 오류 ${r.status}`);
+    return r.json();
+  }
+
   // ---------- 글 저장소: claude.ai에선 내 계정 저장소(기기 간 공유), 아니면 이 기기 ----------
   const Posts = {
     map: new Map(), col: null, writing: new Map(), pending: new Map(), onChange: () => {},
@@ -555,6 +583,31 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     saveLocal() { local.set("posts", this.all()); },
     async init() {
       this.loadLocal(); this.onChange();
+      await pcReady;
+      if (pcMode) {
+        this.pc = true;
+        $("storeNote").textContent = "글은 이 PC(블로그 자동 글쓰기 프로그램)에 저장됩니다.";
+        const localOnly = this.all();
+        const pull = async (first) => {
+          try {
+            const list = await pcFetch("/api/posts");
+            const ids = new Set(list.map((x) => x.id));
+            if (first) { this.map.clear(); localOnly.forEach((p) => { if (!ids.has(p.id)) this.save(p); }); }
+            list.forEach((d) => {
+              const cur = this.map.get(d.id);
+              if (!cur || (d.updatedAt || 0) > (cur.updatedAt || 0) || JSON.stringify(d.pub || {}) !== JSON.stringify(cur.pub || {})) {
+                if (this.writing.has(d.id)) return;
+                this.map.set(d.id, d);
+              }
+            });
+            [...this.map.keys()].forEach((id) => { if (!ids.has(id) && !this.writing.has(id)) this.map.delete(id); });
+            this.saveLocal(); this.onChange();
+          } catch (e) { $("storeNote").textContent = "PC 프로그램에 연결하지 못했어요: " + e.message; }
+        };
+        await pull(true); pushSettings();
+        setInterval(() => { if (!document.hidden) pull(false); }, 15000);
+        return;
+      }
       if (!(window.claude && window.claude.use)) return;
       try {
         const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
@@ -583,6 +636,7 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     },
     save(p) {
       p.updatedAt = Date.now(); this.map.set(p.id, p); this.saveLocal(); this.onChange();
+      if (this.pc) { this.pending.set(p.id, JSON.parse(JSON.stringify(p))); if (!this.writing.has(p.id)) this.flush(p.id); return; }
       if (!this.col) return;
       this.pending.set(p.id, JSON.parse(JSON.stringify(p)));
       if (!this.writing.has(p.id)) this.flush(p.id);
@@ -591,19 +645,25 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
       this.writing.set(id, true);
       while (this.pending.has(id)) {
         const data = this.pending.get(id); this.pending.delete(id);
-        try { await this.col.doc(id).set(data); }
+        try { if (this.pc) await pcFetch("/api/posts/" + id, { method: "PUT", body: JSON.stringify(data) }); else await this.col.doc(id).set(data); }
         catch (e) { if (e && e.code === "quota_exceeded") toast("저장 공간이 꽉 찼어요. 발행 끝난 글을 몇 개 지워 주세요."); }
       }
       this.writing.delete(id);
     },
     async remove(id) {
       this.map.delete(id); this.saveLocal(); this.onChange();
+      if (this.pc) { try { await pcFetch("/api/posts/" + id, { method: "DELETE" }); } catch {} }
       if (this.col) { try { await this.col.doc(id).delete(); } catch {} }
     },
   };
   // 자동 작성(클라우드)이 읽는 설정
   let settingsBusy = false, settingsAgain = false;
   async function pushSettings() {
+    if (Posts.pc) {
+      const o = readForm();
+      try { await pcFetch("/api/settings", { method: "PUT", body: JSON.stringify({ cats: catList(), persona: o.persona || DEFAULT_PERSONA, nick: o.nick, blogId: o.blogId, tone: o.tone, minLen: o.minLen, imgCount: o.imgCount, emoji: o.emoji }) }); } catch {}
+      return;
+    }
     if (!Posts.col) return;
     if (settingsBusy) { settingsAgain = true; return; }
     settingsBusy = true;
@@ -635,7 +695,12 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     }).catch(useApiKeyMode);
     window.claude.use("downloads").then((d) => { downloads = d; }).catch(() => {});
   } else {
-    useApiKeyMode();
+    pcReady.then(() => {
+      if (!pcMode) return useApiKeyMode();
+      backend = "pc"; $("keyBox").hidden = true;
+      $("mode").innerHTML = "연결: <b>이 PC의 자동 글쓰기 프로그램</b>";
+      setupPc();
+    });
   }
 
   // ---------- 탭 ----------
@@ -843,6 +908,11 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
 
   async function ask(prompt, onProgress, signal) {
     if (backend === "none") throw new Error("연결 확인 중이에요. 잠시 뒤 다시 눌러 주세요.");
+    if (backend === "pc") {
+      const r = await pcFetch("/api/ask", { method: "POST", body: JSON.stringify({ prompt }), signal });
+      if (!r.ok) throw new Error(r.error || "PC에서 글을 만들지 못했어요.");
+      return r.data;
+    }
     if (backend === "claude") {
       return sample.json(prompt, { signal, cache: false, onText: ({ text }) => onProgress && onProgress(text.length) });
     }
@@ -1390,7 +1460,50 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
       ? `오른쪽 위 <b>발행</b> → <b>예약</b>을 켜고 날짜·시간을 <b>${naverWhen(c.when)}</b>로 맞춘 뒤 발행을 누르고, 여기서 ‘예약 완료로 표시’를 누르세요.`
       : `발행 설정에서 <b>예약</b>을 고르고 <b>${naverWhen(c.when)}</b>로 맞춘 뒤, 여기서 ‘예약 완료로 표시’를 누르세요.`);
     else add("발행한 뒤 여기서 ‘발행 완료로 표시’를 누르세요.");
+    if (pcMode) drawPcPub();
   }
+  function drawPcPub() {
+    const c = current; if (!c) return;
+    $("pcPub").hidden = false;
+    const pub = c.pub || {}; const st = $("pcPubState"); st.textContent = "";
+    const msg = {
+      waiting: `${fmtWhen(c.when)}에 이 PC가 네이버에 자동 발행합니다. 그 시간에 PC와 프로그램을 켜 두세요.`,
+      queued: "발행 순서를 기다리는 중…", running: "PC의 크롬이 네이버에 입력하는 중…",
+      done: pub.message || "발행 완료", failed: "실패: " + (pub.message || ""),
+    }[pub.state] || (c.when ? `시간(${fmtWhen(c.when)})이 정해져 있어요. ‘예약 시간에 PC가 자동 발행’을 누르면 그 시간에 올라갑니다.` : "발행 시간을 정하면 그 시간에 PC가 자동으로 올립니다. 지금 바로 올릴 수도 있어요.");
+    st.append(document.createTextNode(msg + " "));
+    if (pub.state === "done" && pub.url) { const a = document.createElement("a"); a.href = pub.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = "올라간 글 보기 ↗"; st.append(a); }
+    if (pub.state === "waiting") { const b = document.createElement("button"); b.type = "button"; b.className = "linkbtn"; b.textContent = "자동 발행 취소"; b.onclick = () => pcPublish("cancel"); st.append(b); }
+    const busy = pub.state === "queued" || pub.state === "running";
+    ["pcSchedule", "pcNow", "pcDraft"].forEach((id) => $(id).disabled = busy);
+  }
+  async function pcPublish(mode) {
+    const c = current; if (!c) return;
+    if (mode === "schedule" && !c.when) { toast("먼저 발행(예약) 시간을 정해 주세요."); $("pWhen").focus(); return; }
+    if (mode !== "cancel" && mode !== "draft") {
+      const left = audit($("body").value, c.minLen || 3000).filter(([ok]) => !ok).map(([, t]) => t).filter((t) => /직접 쓰기|공고 확인/.test(t));
+      if (left.length && !window.confirm("아직 채우지 않은 자리가 있어요.\n" + left.join("\n") + "\n그래도 발행할까요?")) return;
+    }
+    c.body = $("body").value; Posts.save(c);
+    try {
+      await pcFetch("/api/posts/" + c.id, { method: "PUT", body: JSON.stringify(c) });
+      const images = {};
+      if (mode !== "cancel") gallery.forEach((g, i) => {
+        if (!g.url) return;
+        const key = i === 0 ? "thumb" : i === gallery.length - 1 ? "summary" : String(i);
+        images[key] = g.url;
+      });
+      const r = await pcFetch("/api/publish", { method: "POST", body: JSON.stringify({ id: c.id, mode, images }) });
+      if (!r.ok) { toast(r.error || "요청하지 못했어요."); return; }
+      if (mode === "schedule" && c.status !== "scheduled") { c.status = "scheduled"; Posts.save(c); }
+      c.pub = { state: mode === "schedule" ? "waiting" : mode === "cancel" ? "" : "queued" };
+      drawPubbar();
+      toast(mode === "schedule" ? `${fmtWhen(c.when)} 자동 발행을 걸었어요` : mode === "cancel" ? "자동 발행을 취소했어요" : "PC에서 발행을 시작합니다");
+    } catch (e) { toast(e.message); }
+  }
+  $("pcSchedule").onclick = () => pcPublish("schedule");
+  $("pcNow").onclick = () => pcPublish("now");
+  $("pcDraft").onclick = () => pcPublish("draft");
   $("pStatus").onchange = () => { if (!current) return; current.status = $("pStatus").value; if (current.status === "picked" && !current.pickedAt) current.pickedAt = Date.now(); Posts.save(current); drawPubbar(); };
   $("pWhen").onchange = () => { if (!current) return; current.when = $("pWhen").value; if (current.when && current.status === "review") { current.status = "picked"; current.pickedAt = current.pickedAt || Date.now(); } Posts.save(current); drawPubbar(); };
   $("markScheduled").onclick = () => {
@@ -1603,12 +1716,31 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     st.append(pill, t);
     const kw = $("autoKw"); kw.textContent = "";
     (Array.isArray(a.keywords) ? a.keywords : []).slice(0, 12).forEach((k) => { const s = document.createElement("span"); s.textContent = String(k); kw.append(s); });
-    if (a.status === "running") { $("runNow").disabled = true; $("runNote").textContent = "지금 쓰는 중이에요. 다 쓰면 휴대폰으로 알림이 갑니다."; }
+    if (a.status === "running") { $("runNow").disabled = true; $("runNote").textContent = pcMode ? "PC에서 쓰는 중이에요." : "지금 쓰는 중이에요. 다 쓰면 휴대폰으로 알림이 갑니다."; }
     else { $("runNow").disabled = false; $("runNote").textContent = "20~40분 걸립니다. 앱을 닫아도 계속 씁니다."; }
   }
   let mcp = null;
   if (window.claude && window.claude.use) window.claude.use("mcp").then((m) => { mcp = m; }).catch(() => {});
+  function setupPc() {
+    $("pcLogin").hidden = false;
+    $("pcLogin").onclick = async () => { try { await pcFetch("/api/login", { method: "POST", body: "{}" }); toast("PC에 크롬 창이 열려요. 거기서 네이버에 직접 로그인하세요."); } catch (e) { toast(e.message); } };
+    const pollAuto = async () => { try { const a = await pcFetch("/api/autorun"); if (a && a.status) drawAuto(a); } catch {} };
+    pcFetch("/api/status").then((st) => {
+      $("autoDesc").textContent = (st.autoWrite ? `이 PC가 매일 ${st.autoWriteTime}에` : "‘지금 바로 찾아서 쓰기’를 누르면") +
+        " 웹에서 최신 뉴스와 정부 발표를 검색해 내 블로그 카테고리에 맞는 키워드를 고르고, 찾은 자료를 근거로 글을 써서 ‘검토·발행’에 넣어 둡니다. 선정한 글은 정한 시간에 이 PC의 크롬이 네이버에 올립니다. PC와 프로그램이 켜져 있어야 해요.";
+    }).catch(() => {});
+    pollAuto(); setInterval(() => { if (!document.hidden) pollAuto(); }, 15000);
+  }
   $("runNow").onclick = async () => {
+    if (pcMode) {
+      $("runNow").disabled = true;
+      try {
+        const r = await pcFetch("/api/autorun", { method: "POST", body: "{}" });
+        $("runNote").textContent = r.ok ? "PC에서 시작했어요. 한 편에 몇 분씩 걸립니다." : (r.error || "시작하지 못했어요.");
+        if (r.ok) drawAuto({ status: "running", startedAt: Date.now(), message: "최신 이슈 검색 중" });
+      } catch (e) { $("runNote").textContent = e.message; $("runNow").disabled = false; }
+      return;
+    }
     if (!mcp || TRIGGER_ID.startsWith("__")) { $("runNote").textContent = "여기서는 바로 실행할 수 없어요. 매일 아침 자동 실행을 기다리거나, Claude에게 ‘블로그 글 지금 써 줘’라고 말해 주세요."; return; }
     $("runNow").disabled = true; $("runNote").textContent = "실행을 요청하는 중…";
     try {
