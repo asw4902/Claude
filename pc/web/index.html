@@ -439,12 +439,24 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
   <div id="view-batch" hidden>
     <section class="panel autopanel" id="autoPanel">
       <div>
-        <h2>자동: 매일 아침 최신 이슈로 10편</h2>
+        <h2 id="autoTitle">자동: 매일 아침 최신 이슈로 10편</h2>
         <p id="autoDesc">매일 오전 5시 47분, Claude가 웹에서 최신 뉴스와 정부 발표를 검색해 내 블로그 카테고리에 맞는 키워드 10개를 고르고, 찾은 자료를 근거로 글을 써서 ‘검토·발행’에 넣어 둡니다. 다 쓰면 휴대폰으로 알림이 갑니다. 카테고리·말투·분량·‘나는 어떤 사람’은 이 앱 설정을 그대로 씁니다.</p>
       </div>
       <div class="side">
         <div class="autostate" id="autoState">마지막 실행 기록 없음</div>
         <button type="button" class="primary" id="runNow">지금 바로 찾아서 쓰기</button>
+        <div id="pcAutoCtl" hidden>
+          <div class="row2">
+            <div class="field" style="margin:0">
+              <label for="pcCount">한 번에 쓸 글</label>
+              <select id="pcCount"><option value="1">1편</option><option value="2">2편</option><option value="3">3편</option><option value="4">4편</option><option value="5">5편</option><option value="6">6편</option><option value="8">8편</option><option value="10">10편</option></select>
+            </div>
+            <div class="field" style="margin:0">
+              <label for="pcAutoTime">매일 자동 작성</label>
+              <select id="pcAutoTime"><option value="">끔 (버튼으로만)</option><option value="05:47">매일 05:47</option><option value="07:47">매일 07:47</option><option value="12:17">매일 12:17</option><option value="18:47">매일 18:47</option><option value="21:17">매일 21:17</option></select>
+            </div>
+          </div>
+        </div>
         <button type="button" id="pcLogin" hidden>PC에서 네이버 로그인 창 열기</button>
         <div class="note" id="runNote">20~40분 걸립니다. 앱을 닫아도 계속 씁니다.</div>
       </div>
@@ -1727,17 +1739,31 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     $("pcLogin").hidden = false;
     $("pcLogin").onclick = async () => { try { await pcFetch("/api/login", { method: "POST", body: "{}" }); toast("PC에 크롬 창이 열려요. 거기서 네이버에 직접 로그인하세요."); } catch (e) { toast(e.message); } };
     const pollAuto = async () => { try { const a = await pcFetch("/api/autorun"); if (a && a.status) drawAuto(a); } catch {} };
-    pcFetch("/api/status").then((st) => {
-      $("autoDesc").textContent = (st.autoWrite ? `이 PC가 매일 ${st.autoWriteTime}에` : "‘지금 바로 찾아서 쓰기’를 누르면") +
-        " 웹에서 최신 뉴스와 정부 발표를 검색해 내 블로그 카테고리에 맞는 키워드를 고르고, 찾은 자료를 근거로 글을 써서 ‘검토·발행’에 넣어 둡니다. 선정한 글은 정한 시간에 이 PC의 크롬이 네이버에 올립니다. PC와 프로그램이 켜져 있어야 해요.";
-    }).catch(() => {});
+    const describe = (st) => {
+      $("autoDesc").textContent = (st.autoWrite ? `이 PC가 매일 ${st.autoWriteTime}에, 또는 ‘지금 바로 찾아서 쓰기’를 누를 때` : "‘지금 바로 찾아서 쓰기’를 누르면") +
+        ` 웹에서 최신 뉴스와 정부 발표를 검색해 내 블로그 카테고리에 맞는 키워드 ${st.postsPerDay || 4}개를 고르고, 찾은 자료를 근거로 글을 써서 ‘검토·발행’에 넣어 둡니다. 선정한 글은 정한 시간에 이 PC의 크롬이 네이버에 올립니다. PC와 프로그램이 켜져 있어야 해요.`;
+      $("autoTitle").textContent = `최신 이슈로 ${st.postsPerDay || 4}편 쓰기` + (st.autoWrite ? ` (매일 ${st.autoWriteTime} 자동)` : "");
+      $("pcCount").value = String(st.postsPerDay || 4);
+      $("pcAutoTime").value = st.autoWrite ? (st.autoWriteTime || "05:47") : "";
+      if (st.autoWrite && !$("pcAutoTime").value) { const o = document.createElement("option"); o.value = o.textContent = st.autoWriteTime; $("pcAutoTime").append(o); $("pcAutoTime").value = st.autoWriteTime; }
+    };
+    $("pcAutoCtl").hidden = false;
+    pcFetch("/api/status").then(describe).catch(() => {});
+    const saveCfg = async () => {
+      const t = $("pcAutoTime").value;
+      try {
+        const r = await pcFetch("/api/config", { method: "PUT", body: JSON.stringify({ posts_per_day: Number($("pcCount").value), auto_write: !!t, ...(t ? { auto_write_time: t } : {}) }) });
+        describe(r); toast(r.autoWrite ? `매일 ${r.autoWriteTime}에 ${r.postsPerDay}편씩 자동으로 씁니다` : `자동 작성 끔 · 버튼을 누르면 ${r.postsPerDay}편 씁니다`);
+      } catch (e) { toast(e.message); }
+    };
+    $("pcCount").onchange = saveCfg; $("pcAutoTime").onchange = saveCfg;
     pollAuto(); setInterval(() => { if (!document.hidden) pollAuto(); }, 15000);
   }
   $("runNow").onclick = async () => {
     if (pcMode) {
       $("runNow").disabled = true;
       try {
-        const r = await pcFetch("/api/autorun", { method: "POST", body: "{}" });
+        const r = await pcFetch("/api/autorun", { method: "POST", body: JSON.stringify({ count: Number($("pcCount").value) || 4 }) });
         $("runNote").textContent = r.ok ? "PC에서 시작했어요. 한 편에 몇 분씩 걸립니다." : (r.error || "시작하지 못했어요.");
         if (r.ok) drawAuto({ status: "running", startedAt: Date.now(), message: "최신 이슈 검색 중" });
       } catch (e) { $("runNote").textContent = e.message; $("runNow").disabled = false; }

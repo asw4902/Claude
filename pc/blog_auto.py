@@ -44,7 +44,7 @@ DEFAULT_CONFIG = {
     "pin": "",                       # 첫 실행 때 자동으로 만들어짐. 검토 앱 접속 비밀번호
     "writer": "auto",                # auto | claude-cli | api
     "model": "claude-opus-5-5",      # writer=api일 때 쓰는 모델
-    "auto_write": True,              # 매일 자동 작성
+    "auto_write": False,             # 매일 자동 작성 (기본: 끔. 앱의 버튼으로 원할 때 작성)
     "auto_write_time": "05:47",      # 매일 자동 작성 시각 (이 PC 시간)
     "posts_per_day": 4,
     "auto_publish": True,            # 예약 시간이 된 '발행 대기' 글을 자동 발행
@@ -747,7 +747,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, read_json(AUTORUN_PATH, {}))
         if path == "/api/status":
             return self.send(200, {"writer": writer_kind(), "autoWrite": CFG.get("auto_write"), "autoWriteTime": CFG.get("auto_write_time"),
-                                   "autoPublish": CFG.get("auto_publish"), "publishMode": CFG.get("publish_mode"),
+                                   "postsPerDay": CFG.get("posts_per_day", 4), "autoPublish": CFG.get("auto_publish"), "publishMode": CFG.get("publish_mode"),
                                    "loggedIn": (PROFILE / "Default").exists(), "busy": AUTORUN_BUSY.is_set()})
         return self.send(404, {"error": "not found"})
 
@@ -764,6 +764,16 @@ class Handler(BaseHTTPRequestHandler):
             data["id"] = m.group(1)
             data.pop("pub", None)   # 발행 상태는 서버만 바꿈
             return self.send(200, post_put(data))
+        if path == "/api/config" and isinstance(data, dict):
+            with LOCK:
+                if "auto_write" in data:
+                    CFG["auto_write"] = bool(data["auto_write"])
+                if "posts_per_day" in data:
+                    CFG["posts_per_day"] = max(1, min(10, int(data["posts_per_day"] or 4)))
+                if re.match(r"^\d{2}:\d{2}$", str(data.get("auto_write_time", ""))):
+                    CFG["auto_write_time"] = data["auto_write_time"]
+                write_json(CONFIG_PATH, CFG)
+            return self.send(200, {"ok": True, "autoWrite": CFG["auto_write"], "postsPerDay": CFG["posts_per_day"], "autoWriteTime": CFG["auto_write_time"]})
         if path == "/api/settings" and isinstance(data, dict):
             keep = {k: data[k] for k in ("cats", "persona", "nick", "blogId", "tone", "minLen", "imgCount", "emoji") if k in data}
             write_json(SETTINGS_PATH, {**read_json(SETTINGS_PATH, {}), **keep})
@@ -862,7 +872,7 @@ def main():
     for ip in local_ips():
         print(f"  아이패드에서:   http://{ip}:{port}   (같은 와이파이 또는 Tailscale)")
     print(f"  접속 비밀번호:  {CFG['pin']}")
-    print(f"  글쓰기 방식:    {writer_kind()}   /  매일 자동 작성 {CFG.get('auto_write_time') if CFG.get('auto_write') else '꺼짐'}")
+    print(f"  글쓰기 방식:    {writer_kind()}   /  매일 자동 작성 {CFG.get('auto_write_time') if CFG.get('auto_write') else '꺼짐 (앱의 버튼이나 지금 글쓰기.bat으로 작성)'}")
     print("=" * 60, flush=True)
     try:
         srv.serve_forever()
