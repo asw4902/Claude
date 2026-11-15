@@ -249,6 +249,8 @@ def ask_cli(prompt, web, timeout):
     if "exc" in result:
         raise WriterError(f"Claude Code 실행 실패: {result['exc']}")
     out_s, err_s = result.get("out") or "", result.get("err") or ""
+    if re.search(r"Not logged in|Please run /login|Invalid API key|OAuth token", out_s + err_s, re.I):
+        raise WriterError("Claude Code에 로그인되어 있지 않습니다. 명령 프롬프트에서 claude 를 실행한 뒤 /login 을 입력해 내 Claude 계정으로 로그인하고, 다시 시도하세요.")
     if proc.returncode != 0:
         raise WriterError("Claude Code 실행 실패: " + (err_s or out_s).strip()[-300:])
     try:
