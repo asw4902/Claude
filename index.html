@@ -196,6 +196,15 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
 .pubbar .row2 { margin-bottom: 8px; }
 .sched { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; }
 .sched summary { min-height: 36px; }
+.autopanel { margin-bottom: 20px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 20px; align-items: center; }
+.autopanel p { margin: 0; font-size: .92rem; color: var(--muted); max-width: 70ch; }
+.autopanel .side { display: flex; flex-direction: column; gap: 8px; min-width: 220px; }
+@media (max-width: 700px) { .autopanel { grid-template-columns: minmax(0, 1fr); } .autopanel .side { min-width: 0; } }
+.autostate { font-size: .9rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.kwlist { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 1 / -1; }
+.kwlist span { font-size: .82rem; background: var(--info-soft); color: var(--info); border-radius: 999px; padding: 2px 10px; }
+.srclist { margin: 0 0 14px; padding-left: 20px; font-size: .9rem; }
+.srclist a { color: var(--info); word-break: break-all; }
 @media (prefers-reduced-motion: no-preference) { button { transition: filter .12s; } button:active { filter: brightness(.92); } }
 </style>
 
@@ -370,6 +379,11 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
 
           <div class="checklist" id="check"></div>
 
+          <div id="srcBox" hidden>
+            <h2>참고한 자료 (숫자·날짜는 발행 전에 한 번 더 확인)</h2>
+            <ol class="srclist" id="srcList"></ol>
+          </div>
+
           <h2>본문</h2>
           <div class="meta" id="count"></div>
           <textarea id="body" spellcheck="false" aria-label="본문"></textarea>
@@ -414,9 +428,21 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
 
   <!-- ========== 이슈 키워드 10편 ========== -->
   <div id="view-batch" hidden>
+    <section class="panel autopanel" id="autoPanel">
+      <div>
+        <h2>자동: 매일 아침 최신 이슈로 10편</h2>
+        <p>매일 오전 5시 47분, Claude가 웹에서 최신 뉴스와 정부 발표를 검색해 내 블로그 카테고리에 맞는 키워드 10개를 고르고, 찾은 자료를 근거로 글을 써서 ‘검토·발행’에 넣어 둡니다. 다 쓰면 휴대폰으로 알림이 갑니다. 카테고리·말투·분량·‘나는 어떤 사람’은 이 앱 설정을 그대로 씁니다.</p>
+      </div>
+      <div class="side">
+        <div class="autostate" id="autoState">마지막 실행 기록 없음</div>
+        <button type="button" class="primary" id="runNow">지금 바로 찾아서 쓰기</button>
+        <div class="note" id="runNote">20~40분 걸립니다. 앱을 닫아도 계속 씁니다.</div>
+      </div>
+      <div class="kwlist" id="autoKw"></div>
+    </section>
     <div class="grid">
       <section class="panel">
-        <h2><span class="step">1</span>이슈 키워드 모으기</h2>
+        <h2><span class="step">1</span>직접 키워드로 쓰기 (선택)</h2>
         <p class="note" style="margin:0 0 10px">이 앱은 인터넷 검색을 할 수 없어서 실시간 검색어를 직접 가져오지 못합니다. 아래에서 요즘 뜨는 키워드를 보고 붙여넣거나, ‘이번 달 이슈로 채우기’를 켜 두세요.</p>
         <div class="links">
           <a href="https://datalab.naver.com/keyword/realtimeList.naver" target="_blank" rel="noopener">네이버 데이터랩 ↗</a>
@@ -545,12 +571,14 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
           snap.docChanges().forEach((ch) => {
             const d = ch.doc.data();
             if (ch.type === "removed") this.map.delete(ch.doc.id);
+            else if (d && d.kind === "autorun") drawAuto(d);
             else if (d && d.kind === "post" && !this.writing.has(ch.doc.id)) this.map.set(ch.doc.id, { ...d });
           });
           if (first) {
             first = false;
             // 이 기기에만 있던 글은 계정 저장소로 옮김
             localOnly.forEach((p) => { if (!snap.docs.some((d) => d.id === p.id)) this.save(p); });
+            pushSettings();
           }
           this.saveLocal(); this.onChange();
         }, () => { this.col = null; $("storeNote").textContent = "계정 저장소에 연결하지 못해 이 기기에만 저장합니다."; });
@@ -576,6 +604,24 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
       if (this.col) { try { await this.col.doc(id).delete(); } catch {} }
     },
   };
+  // 자동 작성(클라우드)이 읽는 설정
+  let settingsBusy = false, settingsAgain = false;
+  async function pushSettings() {
+    if (!Posts.col) return;
+    if (settingsBusy) { settingsAgain = true; return; }
+    settingsBusy = true;
+    do {
+      settingsAgain = false;
+      const o = readForm();
+      try {
+        await Posts.col.doc("settings").set({
+          kind: "settings", cats: catList(), persona: o.persona || DEFAULT_PERSONA, nick: o.nick, blogId: o.blogId,
+          platform: o.platform, tone: o.tone, minLen: o.minLen, imgCount: o.imgCount, emoji: o.emoji, updatedAt: Date.now(),
+        });
+      } catch {}
+    } while (settingsAgain);
+    settingsBusy = false;
+  }
   const newId = () => "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   // ---------- 연결 ----------
@@ -629,7 +675,7 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
   $("saveCats").onclick = () => {
     const list = $("catText").value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 30);
     if (!list.length) { toast("카테고리를 하나 이상 적어 주세요."); return; }
-    cats = list; local.set("cats", cats); $("catEditor").hidden = true; drawCats(); drawCands(); toast("카테고리 저장됨");
+    cats = list; local.set("cats", cats); $("catEditor").hidden = true; drawCats(); drawCands(); pushSettings(); toast("카테고리 저장됨");
   };
 
   // ---------- 입력값 ----------
@@ -653,7 +699,7 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     o.minLen = parseInt(o.length, 10) || 3000;
     return o;
   }
-  const saveForm = () => local.set("form3", readForm());
+  const saveForm = () => { local.set("form3", readForm()); pushSettings(); };
   ["tone", "length", "imgCount", "nick", "blogId", "persona", "emoji"].forEach((id) => $(id).addEventListener("change", saveForm));
   function syncPlatform() {
     const p = radio("platform");
@@ -1190,6 +1236,14 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
       l.append(r, s); box.append(l);
     });
     $("body").value = c.body; updateCount(); drawAudit(); drawImgPlan(); drawSwatches(); drawCards();
+    const sl = $("srcList"); sl.textContent = "";
+    (Array.isArray(c.sources) ? c.sources : []).slice(0, 8).forEach((x) => {
+      const url = String(x && x.url || ""); if (!/^https?:\/\//.test(url)) return;
+      const li = document.createElement("li"); const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener"; a.textContent = String(x.title || url).slice(0, 90);
+      li.append(a); sl.append(li);
+    });
+    $("srcBox").hidden = !sl.children.length;
     const tg = $("tags"); tg.textContent = "";
     c.tags.forEach((t) => { const s = document.createElement("span"); s.className = "tag"; s.textContent = "#" + t; tg.append(s); });
     $("longer").textContent = `${(c.minLen || 3000).toLocaleString()}자 채우기`;
@@ -1390,6 +1444,43 @@ summary { cursor: pointer; font-weight: 600; font-size: .95rem; min-height: 32px
     if (!current) return;
     const t = radio("platform") === "tistory" ? current.tags.join(", ") : current.tags.map((x) => "#" + x).join(" ");
     copyPlain(t, "태그");
+  };
+
+  // ---------- 자동 작성 (매일 실행되는 클라우드 작업) ----------
+  const TRIGGER_ID = "trig_01SJjUiBoVjz4umkwGwnaieR";
+  function drawAuto(a) {
+    const st = $("autoState"); st.textContent = "";
+    const pill = document.createElement("span");
+    const map = { running: ["st-writing", "쓰는 중"], done: ["st-picked", "완료"], failed: ["st-failed", "실패"] };
+    const [cls, label] = map[a.status] || ["st-review", a.status || ""];
+    pill.className = "pill " + cls; pill.textContent = label;
+    const t = document.createElement("span");
+    const at = a.status === "running" ? a.startedAt : (a.finishedAt || a.startedAt);
+    const d = at ? new Date(at) : null;
+    t.textContent = (d && !isNaN(d) ? `${d.getMonth() + 1}월 ${d.getDate()}일 ${pad(d.getHours())}:${pad(d.getMinutes())}` : "") +
+      (a.status === "done" ? ` · ${a.count || 0}편` : "") + (a.message ? ` · ${String(a.message).slice(0, 80)}` : "");
+    st.append(pill, t);
+    const kw = $("autoKw"); kw.textContent = "";
+    (Array.isArray(a.keywords) ? a.keywords : []).slice(0, 12).forEach((k) => { const s = document.createElement("span"); s.textContent = String(k); kw.append(s); });
+    if (a.status === "running") { $("runNow").disabled = true; $("runNote").textContent = "지금 쓰는 중이에요. 다 쓰면 휴대폰으로 알림이 갑니다."; }
+    else { $("runNow").disabled = false; $("runNote").textContent = "20~40분 걸립니다. 앱을 닫아도 계속 씁니다."; }
+  }
+  let mcp = null;
+  if (window.claude && window.claude.use) window.claude.use("mcp").then((m) => { mcp = m; }).catch(() => {});
+  $("runNow").onclick = async () => {
+    if (!mcp || TRIGGER_ID.startsWith("__")) { $("runNote").textContent = "여기서는 바로 실행할 수 없어요. 매일 아침 자동 실행을 기다리거나, Claude에게 ‘블로그 글 지금 써 줘’라고 말해 주세요."; return; }
+    $("runNow").disabled = true; $("runNote").textContent = "실행을 요청하는 중…";
+    try {
+      await mcp.callTool("Claude Code Remote", "fire_trigger", { trigger_id: TRIGGER_ID });
+      $("runNote").textContent = "시작했어요. 20~40분 뒤 ‘검토·발행’에 글이 들어오고 휴대폰 알림이 갑니다.";
+      drawAuto({ status: "running", startedAt: Date.now() });
+    } catch (e) {
+      $("runNow").disabled = false;
+      const c = e && e.code;
+      $("runNote").textContent = c === "server_not_connected" ? "claude.ai 설정 → 커넥터에서 ‘Claude Code Remote’가 연결돼 있어야 해요."
+        : c === "not_in_manifest" ? "이 페이지에서 Claude Code Remote 사용을 허용하지 않았어요. 매일 아침 자동 실행은 그대로 됩니다."
+        : "지금은 실행하지 못했어요. 매일 아침 자동 실행은 그대로 됩니다.";
+    }
   };
 
   // ---------- 시작 ----------
