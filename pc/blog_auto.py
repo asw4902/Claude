@@ -180,12 +180,26 @@ def parse_json_loose(text):
     raise WriterError("결과를 JSON으로 읽지 못했습니다.")
 
 
+def find_claude():
+    """claude 명령 위치. PATH에 없어도 기본 설치 위치를 직접 찾아본다."""
+    exe = shutil.which("claude")
+    if exe:
+        return exe
+    home = Path(os.environ.get("USERPROFILE") or Path.home())
+    for c in (home / ".local" / "bin" / "claude.exe", home / ".local" / "bin" / "claude",
+              Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "WinGet" / "Links" / "claude.exe",
+              Path(os.environ.get("APPDATA", "")) / "npm" / "claude.cmd"):
+        if c.is_file():
+            return str(c)
+    return None
+
+
 def writer_kind():
     w = CFG.get("writer", "auto")
     if w == "auto":
         if os.environ.get("BLOG_AUTO_FAKE"):
             return "fake"
-        if shutil.which("claude"):
+        if find_claude():
             return "claude-cli"
         return "api"
     return w
@@ -203,7 +217,7 @@ def ask_claude(prompt, web=False, timeout=1200):
 
 def ask_cli(prompt, web, timeout):
     # 이 PC에 설치된 Claude Code(claude 명령)를 내 Claude 계정으로 사용
-    exe = shutil.which("claude")
+    exe = find_claude()
     if not exe:
         raise WriterError("claude 명령을 찾지 못했습니다. Claude Code를 설치하거나 config.json의 writer를 api로 바꾸세요.")
     cmd = [exe, "-p", "--output-format", "json"]
