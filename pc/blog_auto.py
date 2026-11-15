@@ -46,7 +46,7 @@ DEFAULT_CONFIG = {
     "model": "claude-opus-5-5",      # writer=api일 때 쓰는 모델
     "auto_write": True,              # 매일 자동 작성
     "auto_write_time": "05:47",      # 매일 자동 작성 시각 (이 PC 시간)
-    "posts_per_day": 10,
+    "posts_per_day": 4,
     "auto_publish": True,            # 예약 시간이 된 '발행 대기' 글을 자동 발행
     "headless": False,               # True면 크롬 창을 띄우지 않고 발행
     "publish_mode": "publish",       # publish(발행) | draft(임시저장만, 시험용)
