@@ -209,9 +209,11 @@ def ask_cli(prompt, web, timeout):
     cmd = [exe, "-p", "--output-format", "json"]
     if web:
         cmd += ["--allowedTools", "WebSearch", "WebFetch"]
+    # API 키가 환경 변수에 있으면 Claude Code가 그 키(유료)를 쓸 수 있으므로, 구독 로그인만 쓰도록 빼고 실행
+    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
     try:
         r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8",
-                           timeout=timeout, cwd=str(DATA))
+                           timeout=timeout, cwd=str(DATA), env=env)
     except subprocess.TimeoutExpired:
         raise WriterError("Claude 응답이 너무 오래 걸려 중단했습니다.")
     if r.returncode != 0:
